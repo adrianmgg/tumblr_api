@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -25,8 +27,29 @@ pub enum ContentBlock {
     },
     /// <https://www.tumblr.com/docs/npf#content-block-type-image>
     Image {
+        /// "An array of [MediaObject]s which represent different available sizes of this image asset."
         media: Vec<MediaObject>,
-    }
+        /// "Colors used in the image."
+        #[serde(skip_serializing_if = "Option::is_none")]
+        colors: Option<HashMap<String, String>>,
+        /// "A feedback token to use when this image block is a GIF Search result."
+        #[serde(skip_serializing_if = "Option::is_none")]
+        feedback_token: Option<String>,
+        /// "For GIFs, this is a single-frame "poster""
+        #[serde(skip_serializing_if = "Option::is_none")]
+        poster: Option<String>,
+        // TODO doc ("See the Attributions section for details about these objects.")
+        #[serde(skip_serializing_if = "Option::is_none")]
+        attribution: Option<Attribution>,
+        /// "Text used to describe the image, for screen readers. 4096 character maximum."
+        // TODO enforce that max length on serialize
+        #[serde(skip_serializing_if = "Option::is_none")]
+        alt_text: Option<String>,
+        /// "A caption typically shown under the image. 4096 character maximum."
+        // TODO enforce that max length on serialize
+        #[serde(skip_serializing_if = "Option::is_none")]
+        caption: Option<String>,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -118,6 +141,48 @@ pub struct MediaObject {
     /// "This indicates whether this media object has the same dimensions as the original media"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_original_dimensions: Option<bool>,
+}
+
+/// <https://www.tumblr.com/docs/npf#attributions>
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum Attribution {
+    /// <https://www.tumblr.com/docs/npf#attribution-type-post>
+    Post {
+        /// "The URL of the Post to be attributed."
+        url: String,
+        /// "A [`Post`] object with at least an [`Post::id`] field."
+        post: Post,
+        blog: Blog,
+    },
+    /// <https://www.tumblr.com/docs/npf#attribution-type-link>
+    Link {
+        /// "The URL to be attributed for the content."
+        url: String,
+    },
+    /// <https://www.tumblr.com/docs/npf#attribution-type-blog>
+    Blog {
+        blog: Blog,
+    },
+    /// <https://www.tumblr.com/docs/npf#attribution-type-app>
+    App {
+        /// "The canonical URL to the source content in the third-party app."
+        url: String,
+        /// "The name of the application to be attributed."
+        #[serde(skip_serializing_if = "Option::is_none")]
+        app_name: Option<String>,
+        /// "Any display text that the client should use with the attribution."
+        #[serde(skip_serializing_if = "Option::is_none")]
+        display_text: Option<String>,
+        /// "A specific logo [`MediaObject`] that the client should use with the third-party app attribution."
+        #[serde(skip_serializing_if = "Option::is_none")]
+        logo: Option<MediaObject>,
+    },
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Post {
+    // TODO
 }
 
 #[cfg(test)]
@@ -239,5 +304,47 @@ mod tests {
             }]
         },
         json!({"type":"text","text":"Celebrate Pride Month","formatting":[{"start":10,"end":15,"type":"color","hex":"#ff492f"}]})
+    );
+
+    json_serde_test!(
+        contentblock_media_example1,
+        ContentBlock,
+        ContentBlock::Image {
+            media: vec![
+                MediaObject { url: "http://69.media.tumblr.com/b06fe71cc4ab47e93749df060ff54a90/tumblr_nshp8oVOnV1rg0s9xo1_1280.jpg".to_string(), mime_type: Some("image/jpeg".to_string()), width: Some(1280), height: Some(1073), original_dimensions_missing: None, cropped: None, has_original_dimensions: None },
+                MediaObject { url: "http://69.media.tumblr.com/b06fe71cc4ab47e93749df060ff54a90/tumblr_nshp8oVOnV1rg0s9xo1_540.jpg".to_string(), mime_type: Some("image/jpeg".to_string()), width: Some(540), height: Some(400), original_dimensions_missing: None, cropped: None, has_original_dimensions: None },
+                MediaObject { url: "http://69.media.tumblr.com/b06fe71cc4ab47e93749df060ff54a90/tumblr_nshp8oVOnV1rg0s9xo1_250.jpg".to_string(), mime_type: Some("image/jpeg".to_string()), width: Some(250), height: Some(150), original_dimensions_missing: None, cropped: None, has_original_dimensions: None },
+            ],
+            colors: None,
+            feedback_token: None,
+            poster: None,
+            attribution: None,
+            alt_text: Some("Sonic the Hedgehog and friends".to_string()),
+            caption: Some("I'm living my best life on earth.".to_string())
+        },
+        json!({
+            "type":"image", "media":[
+                {"type":"image/jpeg","url":"http://69.media.tumblr.com/b06fe71cc4ab47e93749df060ff54a90/tumblr_nshp8oVOnV1rg0s9xo1_1280.jpg","width":1280,"height":1073},
+                {"type":"image/jpeg","url":"http://69.media.tumblr.com/b06fe71cc4ab47e93749df060ff54a90/tumblr_nshp8oVOnV1rg0s9xo1_540.jpg","width":540,"height":400},
+                {"type":"image/jpeg","url":"http://69.media.tumblr.com/b06fe71cc4ab47e93749df060ff54a90/tumblr_nshp8oVOnV1rg0s9xo1_250.jpg","width":250,"height":150}
+            ],
+            "alt_text": "Sonic the Hedgehog and friends",
+            "caption":"I'm living my best life on earth."
+        })
+    );
+
+    json_serde_test!(
+        contentblock_media_example2,
+        ContentBlock,
+        ContentBlock::Image {
+            media: vec![ MediaObject {
+                url: "http://69.media.tumblr.com/b06fe71cc4ab47e93749df060ff54a90/tumblr_nshp8oVOnV1rg0s9xo1_250.gif".to_string(),
+                mime_type: Some("image/gif".to_string()), width: Some(250), height: Some(200),
+                original_dimensions_missing: None, cropped: None, has_original_dimensions: None
+            } ],
+            feedback_token: Some("abcdef123456".to_string()),
+            colors: None, poster: None, attribution: None, alt_text: None, caption: None
+        },
+        json!({"type":"image","media":[{"type":"image/gif","url":"http://69.media.tumblr.com/b06fe71cc4ab47e93749df060ff54a90/tumblr_nshp8oVOnV1rg0s9xo1_250.gif","width":250,"height":200}],"feedback_token":"abcdef123456"})
     );
 }
