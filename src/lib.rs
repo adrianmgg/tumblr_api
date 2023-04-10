@@ -50,6 +50,22 @@ pub enum ContentBlock {
         #[serde(skip_serializing_if = "Option::is_none")]
         caption: Option<String>,
     },
+    /// <https://www.tumblr.com/docs/npf#content-block-type-link>
+    Link {
+        // TODO
+    },
+    /// <https://www.tumblr.com/docs/npf#content-block-type-audio>
+    Audio {
+        // TODO
+    },
+    /// <https://www.tumblr.com/docs/npf#content-block-type-video>
+    Video {
+        // TODO
+    },
+    /// <https://www.tumblr.com/docs/npf#content-block-type-paywall>
+    Paywall {
+        // TODO
+    },
 }
 
 #[derive(Serialize, Deserialize)]
