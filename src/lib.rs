@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Blog {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -12,7 +12,7 @@ pub struct Blog {
 }
 
 /// <https://www.tumblr.com/docs/npf#content-blocks>
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum ContentBlock {
     /// <https://www.tumblr.com/docs/npf#content-block-type-text>
@@ -68,7 +68,7 @@ pub enum ContentBlock {
     },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum TextSubtype {
     Heading1,
@@ -82,7 +82,7 @@ pub enum TextSubtype {
 }
 
 /// <https://www.tumblr.com/docs/npf#inline-formatting-within-a-text-block>
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum InlineFormat {
     /// <https://www.tumblr.com/docs/npf#inline-format-types-bold-italic-strikethrough-small>
@@ -127,14 +127,14 @@ pub enum InlineFormat {
     },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct InlineFormatRange {
     pub start: i32,
     pub end: i32,
 }
 
 /// <https://www.tumblr.com/docs/npf#media-objects>
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct MediaObject {
     /// "The canonical URL of the media asset"
     pub url: String,
@@ -160,7 +160,7 @@ pub struct MediaObject {
 }
 
 /// <https://www.tumblr.com/docs/npf#attributions>
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Attribution {
     /// <https://www.tumblr.com/docs/npf#attribution-type-post>
@@ -196,7 +196,7 @@ pub enum Attribution {
     },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Post {
     // TODO
 }
@@ -211,9 +211,12 @@ mod tests {
         ($testname:ident, $type:ty, $thing:expr, $json:expr) => {
             #[test]
             fn $testname() {
-                let block = $thing;
-                let serialized = serde_json::to_value(block).unwrap();
-                assert_eq!(serialized, $json,)
+                let thing = $thing;
+                let json = $json;
+                let serialized = serde_json::to_value(&thing).unwrap();
+                assert_eq!(serialized, json);
+                let deserialized = serde_json::from_value::<$type>(json).unwrap();
+                assert_eq!(thing, deserialized);
             }
         };
     }
