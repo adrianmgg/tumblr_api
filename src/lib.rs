@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct Blog {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -13,7 +14,7 @@ pub struct Blog {
 
 /// <https://www.tumblr.com/docs/npf#content-blocks>
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 pub enum ContentBlock {
     /// <https://www.tumblr.com/docs/npf#content-block-type-text>
     Text {
@@ -39,6 +40,7 @@ pub enum ContentBlock {
         #[serde(skip_serializing_if = "Option::is_none")]
         poster: Option<String>,
         // TODO doc ("See the Attributions section for details about these objects.")
+        // TODO some posts sent with `"attribution": []` ???
         #[serde(skip_serializing_if = "Option::is_none")]
         attribution: Option<Attribution>,
         /// "Text used to describe the image, for screen readers. 4096 character maximum."
@@ -69,7 +71,7 @@ pub enum ContentBlock {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub enum TextSubtype {
     Heading1,
     Heading2,
@@ -83,7 +85,7 @@ pub enum TextSubtype {
 
 /// <https://www.tumblr.com/docs/npf#inline-formatting-within-a-text-block>
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 pub enum InlineFormat {
     /// <https://www.tumblr.com/docs/npf#inline-format-types-bold-italic-strikethrough-small>
     Bold {
@@ -128,6 +130,7 @@ pub enum InlineFormat {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct InlineFormatRange {
     pub start: i32,
     pub end: i32,
@@ -135,6 +138,7 @@ pub struct InlineFormatRange {
 
 /// <https://www.tumblr.com/docs/npf#media-objects>
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct MediaObject {
     /// "The canonical URL of the media asset"
     pub url: String,
@@ -161,7 +165,7 @@ pub struct MediaObject {
 
 /// <https://www.tumblr.com/docs/npf#attributions>
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 pub enum Attribution {
     /// <https://www.tumblr.com/docs/npf#attribution-type-post>
     Post {
@@ -197,6 +201,7 @@ pub enum Attribution {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct Post {
     // TODO
 }

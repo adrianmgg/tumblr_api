@@ -9,6 +9,15 @@ macro_rules! json_serde_eq {
     }};
 }
 
+macro_rules! json_de_eq {
+    ($type:ty, $json:tt, $thing:expr) => {{
+        let thing = $thing;
+        let json: serde_json::Value = serde_json::from_str($json).unwrap();
+        let deserialized: $type = serde_json::from_value(json).unwrap();
+        assert_eq!(thing, deserialized);
+    }};
+}
+
 use npf::*;
 
 #[test]
@@ -35,6 +44,24 @@ fn content_block_text() {
             }],
         }
     )
+}
+
+// some responses i got from the tumblr api had `"attribution": []` -- should handle that as None
+#[test]
+fn content_block_attribution_empty_list() {
+    json_de_eq!(
+        ContentBlock,
+        r#"{"type": "image", "media": [], "attribution": []}"#,
+        ContentBlock::Image {
+            media: vec![],
+            colors: None,
+            feedback_token: None,
+            poster: None,
+            attribution: None,
+            alt_text: None,
+            caption: None
+        }
+    );
 }
 
 #[test]
