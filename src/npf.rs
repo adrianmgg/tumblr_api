@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize, Deserializer};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct Blog {
+pub struct MentionBlog {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -264,7 +264,7 @@ pub enum InlineFormat {
     Mention {
         #[serde(flatten)]
         range: InlineFormatRange,
-        blog: Blog,
+        blog: MentionBlog,
     },
     /// <https://www.tumblr.com/docs/npf#inline-format-type-color>
     Color {
@@ -332,7 +332,7 @@ pub enum Attribution {
         url: String,
         /// "A [`Post`] object with at least an [`Post::id`] field."
         post: Post,
-        blog: Blog,
+        blog: MentionBlog,
     },
     /// <https://www.tumblr.com/docs/npf#attribution-type-link>
     Link {
@@ -343,7 +343,7 @@ pub enum Attribution {
     },
     /// <https://www.tumblr.com/docs/npf#attribution-type-blog>
     Blog {
-        blog: Blog,
+        blog: MentionBlog,
     },
     /// <https://www.tumblr.com/docs/npf#attribution-type-app>
     App {

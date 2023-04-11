@@ -72,6 +72,9 @@ pub struct NPFPost {
     // // pub post_type: PostType,
     /// (undocumented) the post's original type? only present on npf posts.
     pub original_type: String,
+    /// (undocumented?)
+    // wait is this one actually not mentioned in the docs anywhere?
+    pub blog: Blog,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -90,7 +93,20 @@ pub enum PostState {
     Private,
 }
 
-pub struct BlogInfo {
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Blog {
+    name: String,
+    title: String,
+    description: String,
+    url: String,
+    // TODO parse tumblr uuids?
+    uuid: String,
+    // TODO parse date
+    updated: i64,
+    // TODO ?
+    tumblrmart_accessories: serde_json::Map<String, serde_json::Value>,
+    can_show_badges: bool,
 }
 
 
