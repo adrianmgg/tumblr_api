@@ -34,7 +34,9 @@ pub struct NPFPost {
     pub blog_name: String,
     /// The post's unique ID
     pub id: i64,
-    // (skip id_string)
+    /// "The post's unique ID as a String, for clients that don't support 64-bit integers"
+    // TODO skip id_string?
+    pub id_string: String,
     /// "The post's unique "genesis" ID as a String. Only available to the post owner in certain circumstances."
     /// (longer explanation [here](https://www.tumblr.com/docs/en/api/v2#posts--retrieve-published-posts), in the footnote at the bottom of the "Response" section)
     pub genesis_post_id: Option<String>,
@@ -75,6 +77,36 @@ pub struct NPFPost {
     /// (undocumented?)
     // wait is this one actually not mentioned in the docs anywhere?
     pub blog: Blog,
+    pub is_blazed: bool,
+    pub is_blaze_pending: bool,
+    pub can_ignite: bool,
+    pub can_blaze: bool,
+    /// "Short text summary to the end of the post URL"
+    pub slug: String,
+    /// "Short text summary to the end of the post URL"
+    pub short_url: String,
+    pub summary: String,
+    pub should_open_in_legacy: bool,
+    // TODO type?
+    pub recommended_source: serde_json::Value,
+    // TODO type?
+    pub recommended_color: serde_json::Value,
+    pub followed: bool,
+    // TODO - should this be nullable? (check what a no-notes post gives)
+    pub note_count: i32,
+    pub content: Vec<super::npf::ContentBlock>,
+    // TODO
+    pub layout: Vec<serde_json::Value>,
+    // TODO
+    pub trail: Vec<serde_json::Value>,
+    pub can_like: bool,
+    pub interactability_reblog: Interactability,
+    pub can_reblog: bool,
+    pub can_send_in_message: bool,
+    pub can_reply: bool,
+    pub display_avatar: bool,
+    // TODO specifically when does this one show up? most posts didnt have it
+    pub is_pinned: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -107,6 +139,14 @@ pub struct Blog {
     // TODO ?
     tumblrmart_accessories: serde_json::Map<String, serde_json::Value>,
     can_show_badges: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Interactability {
+    // TODO is this all the variants?
+    Everyone,
+    Noone,
 }
 
 
