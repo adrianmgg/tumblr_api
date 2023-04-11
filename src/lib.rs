@@ -29,6 +29,23 @@ where
     }
 }
 
+fn single_or_list_of_one<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum SingleOrListOfOne<T> {
+        Single(T),
+        ListOfOne([T; 1]),
+    }
+    match SingleOrListOfOne::<T>::deserialize(deserializer)? {
+        SingleOrListOfOne::Single(a) => Ok(a),
+        SingleOrListOfOne::ListOfOne([a]) => Ok(a),
+    }
+}
+
 /// <https://www.tumblr.com/docs/npf#content-blocks>
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
@@ -79,6 +96,9 @@ pub enum ContentBlock {
         /// (note how `"Time"` is sometimes a string!)
         #[serde(skip_serializing_if = "Option::is_none")]
         exif: Option<serde_json::Map<String, serde_json::Value>>,
+        /// (undocumented)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        clickthrough: Option<Clickthrough>,
     },
     /// <https://www.tumblr.com/docs/npf#content-block-type-link>
     Link {
@@ -126,7 +146,7 @@ pub enum ContentBlock {
         #[serde(skip_serializing_if = "Option::is_none")]
         album: Option<String>,
         /// "An image media object to use as a "poster" for the audio track, usually album art."
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "single_or_list_of_one")]
         poster: Option<MediaObject>,
         /// "HTML code that could be used to embed this audio track into a webpage."
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -374,6 +394,15 @@ pub struct PollSettings {
     multiple_choice: bool,
     // TODO should probably be an enum - what are the possible values?
     close_status: String,
-    expire_after: i64,
+    expire_after: serde_json::Number,
     source: String,
+}
+
+/// (undocumented)
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Clickthrough {
+    pub web_url: String,
+    // TODO - not sure what type this one is
+    pub deeplink_url: Option<()>,
 }

@@ -46,7 +46,6 @@ fn content_block_text() {
     )
 }
 
-// some responses i got from the tumblr api had `"attribution": []` -- should handle that as None
 #[test]
 fn content_block_attribution_empty_list() {
     json_de_eq!(
@@ -60,6 +59,7 @@ fn content_block_attribution_empty_list() {
             alt_text: None,
             caption: None,
             exif: None,
+            clickthrough: None,
         }
     );
 }
