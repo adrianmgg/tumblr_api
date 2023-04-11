@@ -29,7 +29,7 @@ fn content_block_text() {
             text: "Hello world!".to_string(),
             subtype: None,
             indent_level: None,
-            formatting: vec![]
+            formatting: None,
         }
     );
     json_serde_eq!(
@@ -39,9 +39,9 @@ fn content_block_text() {
             text: "some bold indented text".to_string(),
             subtype: Some(TextSubtype::Indented),
             indent_level: Some(1),
-            formatting: vec![InlineFormat::Bold {
+            formatting: Some(vec![InlineFormat::Bold {
                 range: InlineFormatRange { start: 5, end: 9 }
-            }],
+            }]),
         }
     )
 }
@@ -56,10 +56,10 @@ fn content_block_attribution_empty_list() {
             media: vec![],
             colors: None,
             feedback_token: None,
-            poster: None,
             attribution: None,
             alt_text: None,
-            caption: None
+            caption: None,
+            exif: None,
         }
     );
 }

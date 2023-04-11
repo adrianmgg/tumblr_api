@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -10,6 +10,23 @@ pub struct Blog {
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+}
+
+// TODO give this a better name
+fn attribution_deserialize_special_case_stuff<'de, D>(deserializer: D) -> Result<Option<Attribution>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Foo {
+        EmptyTuple([i32; 0]),
+        SingleAttributionValue(Attribution),
+    }
+    match Option::<Foo>::deserialize(deserializer)? {
+        None | Some(Foo::EmptyTuple(_)) => Ok(None),
+        Some(Foo::SingleAttributionValue(v)) => Ok(Some(v)),
+    }
 }
 
 /// <https://www.tumblr.com/docs/npf#content-blocks>
@@ -23,25 +40,25 @@ pub enum ContentBlock {
         subtype: Option<TextSubtype>,
         #[serde(skip_serializing_if = "Option::is_none")]
         indent_level: Option<i32>,
-        #[serde(skip_serializing_if = "Vec::is_empty", default)]
-        formatting: Vec<InlineFormat>,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        formatting: Option<Vec<InlineFormat>>,
     },
     /// <https://www.tumblr.com/docs/npf#content-block-type-image>
     Image {
         /// "An array of [MediaObject]s which represent different available sizes of this image asset."
         media: Vec<MediaObject>,
         /// "Colors used in the image."
+        /// 
+        /// (undocumented) note: colors may instead be listed under [`MediaObject::colors`] in individual entries of [`ContentBlock::Image::media`]
         #[serde(skip_serializing_if = "Option::is_none")]
         colors: Option<HashMap<String, String>>,
         /// "A feedback token to use when this image block is a GIF Search result."
         #[serde(skip_serializing_if = "Option::is_none")]
         feedback_token: Option<String>,
-        /// "For GIFs, this is a single-frame "poster""
-        #[serde(skip_serializing_if = "Option::is_none")]
-        poster: Option<String>,
+        // (one spot in the docs says that an image's `poster` goes here -- that's wrong afaict, it goes in the media object)
         // TODO doc ("See the Attributions section for details about these objects.")
         // TODO some posts sent with `"attribution": []` ???
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
         attribution: Option<Attribution>,
         /// "Text used to describe the image, for screen readers. 4096 character maximum."
         // TODO enforce that max length on serialize
@@ -51,6 +68,17 @@ pub enum ContentBlock {
         // TODO enforce that max length on serialize
         #[serde(skip_serializing_if = "Option::is_none")]
         caption: Option<String>,
+        /// (undocumented) exif tags associated with the image
+        ///
+        /// some sample values:
+        /// ```json
+        /// {"Time": 1590426081, "FocalLength": 3, "FocalLength35mmEquiv": 3, "Aperture": 1.8, "ExposureTime": 0.0011904761904761906, "ISO": 20, "CameraMake": "Apple", "CameraModel": "iPhone 7", "Lens": "3mm"}
+        /// {"Time": 1647793571}
+        /// {"Time": "1625497381"}
+        /// ```
+        /// (note how `"Time"` is sometimes a string!)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        exif: Option<serde_json::Map<String, serde_json::Value>>,
     },
     /// <https://www.tumblr.com/docs/npf#content-block-type-link>
     Link {
@@ -73,7 +101,7 @@ pub enum ContentBlock {
         display_url: Option<String>,
         /// "Supplied on NPF Post consumption, ignored during NPF Post creation."
         #[serde(skip_serializing_if = "Option::is_none")]
-        poster: Option<MediaObject>,
+        poster: Option<Vec<MediaObject>>,
     },
     /// <https://www.tumblr.com/docs/npf#content-block-type-audio>
     Audio {
@@ -111,7 +139,7 @@ pub enum ContentBlock {
         #[serde(skip_serializing_if = "Option::is_none")]
         metadata: Option<serde_json::Value>,
         /// "Optional attribution information about where the audio track came from."
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
         attribution: Option<Attribution>,
     },
     /// <https://www.tumblr.com/docs/npf#content-block-type-video>
@@ -135,21 +163,37 @@ pub enum ContentBlock {
         #[serde(skip_serializing_if = "Option::is_none")]
         embed_url: Option<String>,
         /// "An image media object to use as a "poster" for the video, usually a single frame."
+        // (table in the docs say this is a single MediaObject, but it's actually a list of them)
         #[serde(skip_serializing_if = "Option::is_none")]
-        poster: Option<MediaObject>,
+        poster: Option<Vec<MediaObject>>,
         /// "Optional provider-specific metadata about the video."
         #[serde(skip_serializing_if = "Option::is_none")]
         metadata: Option<serde_json::Value>,
         /// "Optional attribution information about where the video came from."
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
         attribution: Option<Attribution>,
         /// "Whether this video can be played on a cellular connection."
         #[serde(skip_serializing_if = "Option::is_none")]
         can_autoplay_on_cellular: Option<bool>,
+        // kinda undocumented, it's in one of the examples in the docs but they never explain it
+        // TODO sometimes just a single value rather than a list
+        #[serde(skip_serializing_if = "Option::is_none")]
+        filmstrip: Option<MediaObject>,
     },
     /// <https://www.tumblr.com/docs/npf#content-block-type-paywall>
     Paywall {
         // TODO
+    },
+    /// (undocumented)
+    // TODO - some of these fields should probably be optiona
+    Poll {
+        client_id: String,
+        question: String,
+        answers: Vec<PollAnswer>,
+        settings: PollSettings,
+        // TODO - timestamp string, should probably parse it
+        created_at: String,
+        timestamp: i64,
     },
 }
 
@@ -244,6 +288,18 @@ pub struct MediaObject {
     /// "This indicates whether this media object has the same dimensions as the original media"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_original_dimensions: Option<bool>,
+    /// (undocumented)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_key: Option<String>,
+    /// (undocumented) see [`ContentBlock::Image::colors`]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub colors: Option<HashMap<String, String>>,
+    /// <https://www.tumblr.com/docs/npf#gif-posters>
+    #[serde(skip_serializing_if = "Option::is_none")]
+    poster: Option<Box<MediaObject>>,
+    /// (undocumented) video alternative for animated gif image
+    #[serde(skip_serializing_if = "Option::is_none")]
+    video: Option<Vec<MediaObject>>,
 }
 
 /// <https://www.tumblr.com/docs/npf#attributions>
@@ -262,6 +318,8 @@ pub enum Attribution {
     Link {
         /// "The URL to be attributed for the content."
         url: String,
+        /// (undocumented) the href.li version of the url
+        url_redirect: Option<String>,
     },
     /// <https://www.tumblr.com/docs/npf#attribution-type-blog>
     Blog {
@@ -286,7 +344,7 @@ pub enum Attribution {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Post {
-    // TODO
+    pub id: String,
 }
 
 /// <https://www.tumblr.com/docs/npf#embed-iframe-objects>
@@ -301,4 +359,21 @@ pub struct EmbedIframe {
     /// "The height of the video iframe"
     /// #[serde(skip_serializing_if = "Option::is_none")]
     height: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PollAnswer {
+    answer_text: String,
+    client_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PollSettings {
+    multiple_choice: bool,
+    // TODO should probably be an enum - what are the possible values?
+    close_status: String,
+    expire_after: i64,
+    source: String,
 }
