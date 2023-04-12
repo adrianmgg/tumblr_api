@@ -28,15 +28,13 @@ pub enum LegacyPostType {
 
 // https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
+// #[serde(deny_unknown_fields)]
 pub struct NPFPost {
     /// The short name used to uniquely identify a blog
     pub blog_name: String,
     /// The post's unique ID
+    #[serde(with = "post_id_serde")]
     pub id: i64,
-    /// "The post's unique ID as a String, for clients that don't support 64-bit integers"
-    // TODO skip id_string?
-    pub id_string: String,
     /// "The post's unique "genesis" ID as a String. Only available to the post owner in certain circumstances."
     /// (longer explanation [here](https://www.tumblr.com/docs/en/api/v2#posts--retrieve-published-posts), in the footnote at the bottom of the "Response" section)
     pub genesis_post_id: Option<String>,
@@ -246,5 +244,35 @@ mod post_submission_info_serde {
             })),
             None => Ok(None),
         }
+    }
+}
+
+mod post_id_serde {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[derive(Serialize, Deserialize)]
+    struct IdShim {
+        /// (see [`super::NPFPost::id`])
+        id: i64,
+        /// "The post's unique ID as a String, for clients that don't support 64-bit integers"
+        id_string: String,
+    }
+
+    pub(super) fn serialize<S>(id: &i64, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        IdShim {
+            id: id.to_owned(),
+            id_string: id.to_string(),
+        }
+        .serialize(serializer)
+    }
+
+    pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<i64, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        IdShim::deserialize(deserializer).map(|shim| shim.id)
     }
 }
