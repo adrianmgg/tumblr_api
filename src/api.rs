@@ -109,11 +109,11 @@ pub struct NPFPost {
     pub is_pinned: Option<bool>,
     #[serde(flatten)]
     pub ask_info: Option<AskInfo>,
-    #[serde(flatten, with = "post_submission_info_serialize")]
+    #[serde(flatten, with = "post_submission_info_serde")]
     pub submission_info: Option<SubmissionInfo>,
-    // /// fields not captured by anything else
-    // #[serde(flatten)]
-    // pub other_fields: serde_json::Map::<String, serde_json::Value>,
+    /// fields not captured by anything else
+    #[serde(flatten)]
+    pub other_fields: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -163,16 +163,6 @@ pub struct AskInfo {
     pub asking_avatar: Vec<crate::npf::MediaObject>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-pub struct FooBar {
-    #[serde(flatten)]
-    pub ask_info: Option<AskInfo>,
-    #[serde(flatten, with = "post_submission_info_serialize")]
-    pub submission_info: Option<SubmissionInfo>,
-    #[serde(flatten)]
-    pub other_fields: serde_json::Map::<String, serde_json::Value>,
-}
-
 // TODO make this an enum on anon / not anon ?
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SubmissionInfo {
@@ -190,59 +180,25 @@ pub struct SubmissionInfo {
     pub anonymous_email: Option<String>,
 }
 
-mod post_submission_info_serialize {
-    use std::fmt::Debug;
-
+mod post_submission_info_serde {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     use super::SubmissionInfo;
 
-    #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+    #[derive(Serialize, Deserialize)]
     struct Shim {
-        is_submission: ShimBool<true>,
-        #[serde(flatten)]
-        info: SubmissionInfo,
+        is_submission: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        post_author: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        post_author_is_adult: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        anonymous_name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        anonymous_email: Option<String>,
     }
 
-    // based on https://github.com/serde-rs/serde/issues/745#issuecomment-1450072069
-    #[derive(Eq)]
-    struct ShimBool<const V: bool>;
-
-    impl<const V: bool> Debug for ShimBool<V> {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct("ShimBool").field("value", &V).finish()
-        }
-    }
-
-    impl<const V1: bool, const V2: bool> PartialEq<ShimBool<V2>> for ShimBool<V1> {
-        fn eq(&self, _other: &ShimBool<V2>) -> bool {
-            V1 == V2
-        }
-    }
-
-    impl<const V: bool> Serialize for ShimBool<V> {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            serializer.serialize_bool(V)
-        }
-    }
-
-    impl<'de, const V: bool> Deserialize<'de> for ShimBool<V> {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            if bool::deserialize(deserializer)? == V {
-                Ok(ShimBool::<V> {})
-            } else {
-                Err(serde::de::Error::custom("error"))
-            }
-        }
-    }
-
-    #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+    #[derive(Serialize)]
     struct ShimEmpty {}
 
     pub(super) fn serialize<S>(
@@ -254,10 +210,20 @@ mod post_submission_info_serialize {
     {
         match opt {
             None => ShimEmpty {}.serialize(serializer),
-            Some(val) => Shim {
-                is_submission: ShimBool::<true>,
-                info: val.to_owned(),
-            }.serialize(serializer),
+            Some(SubmissionInfo {
+                post_author,
+                post_author_is_adult,
+                anonymous_name,
+                anonymous_email,
+            }) => Shim {
+                is_submission: true,
+                // TODO make a serialize-specific version of the struct with `&str`s to avoid these?
+                post_author: post_author.to_owned(),
+                post_author_is_adult: post_author_is_adult.to_owned(),
+                anonymous_name: anonymous_name.to_owned(),
+                anonymous_email: anonymous_email.to_owned(),
+            }
+            .serialize(serializer),
         }
     }
 
@@ -266,7 +232,18 @@ mod post_submission_info_serialize {
         D: Deserializer<'de>,
     {
         match Option::<Shim>::deserialize(deserializer)? {
-            Some(Shim { is_submission: _, info }) => Ok(Some(info)),
+            Some(Shim {
+                is_submission: _,
+                post_author,
+                post_author_is_adult,
+                anonymous_name,
+                anonymous_email,
+            }) => Ok(Some(SubmissionInfo {
+                post_author,
+                post_author_is_adult,
+                anonymous_name,
+                anonymous_email,
+            })),
             None => Ok(None),
         }
     }
