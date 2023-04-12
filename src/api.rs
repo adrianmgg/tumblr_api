@@ -46,7 +46,7 @@ pub struct NPFPost {
     #[serde(rename = "type")]
     pub post_type: String, // TODO handle this properly
     pub timestamp: i64, // TODO "The time of the post, in seconds since the epoch"
-    pub date: String, // TODO "The GMT date and time of the post, as a string"
+    pub date: String,   // TODO "The GMT date and time of the post, as a string"
     // /// "The post format"
     // (only present on old-style posts)
     // pub format: PostFormat,
@@ -107,6 +107,13 @@ pub struct NPFPost {
     pub display_avatar: bool,
     // TODO specifically when does this one show up? most posts didnt have it
     pub is_pinned: Option<bool>,
+    #[serde(flatten)]
+    pub ask_info: Option<AskInfo>,
+    #[serde(flatten, with = "post_submission_info_serialize")]
+    pub submission_info: Option<SubmissionInfo>,
+    // /// fields not captured by anything else
+    // #[serde(flatten)]
+    // pub other_fields: serde_json::Map::<String, serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -149,42 +156,118 @@ pub enum Interactability {
     Noone,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct AskInfo {
+    pub asking_name: String,
+    pub asking_url: String,
+    pub asking_avatar: Vec<crate::npf::MediaObject>,
+}
 
-mod postcommon_type_serde_bodge {
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct FooBar {
+    #[serde(flatten)]
+    pub ask_info: Option<AskInfo>,
+    #[serde(flatten, with = "post_submission_info_serialize")]
+    pub submission_info: Option<SubmissionInfo>,
+    #[serde(flatten)]
+    pub other_fields: serde_json::Map::<String, serde_json::Value>,
+}
+
+// TODO make this an enum on anon / not anon ?
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct SubmissionInfo {
+    /// "Author of post, only available when submission is not anonymous"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub post_author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub post_author_is_adult: Option<bool>,
+    /// "Name on an anonymous submission"
+    // TODO do these two always occur together?
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anonymous_name: Option<String>,
+    /// "Email on an anonymous submission"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anonymous_email: Option<String>,
+}
+
+mod post_submission_info_serialize {
+    use std::fmt::Debug;
+
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    use super::{LegacyPostType, PostType};
+    use super::SubmissionInfo;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-    #[serde(rename_all = "lowercase")]
-    enum PostTypeSerdeShimInner {
-        Blocks,
+    struct Shim {
+        is_submission: ShimBool<true>,
+        #[serde(flatten)]
+        info: SubmissionInfo,
     }
 
-    #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-    #[serde(untagged)]
-    enum PostTypeSerdeShimOuter {
-        NPF(PostTypeSerdeShimInner),
-        Legacy(LegacyPostType),
-    }
+    // based on https://github.com/serde-rs/serde/issues/745#issuecomment-1450072069
+    #[derive(Eq)]
+    struct ShimBool<const V: bool>;
 
-    pub(super) fn _serialize<S>(post_type: &PostType, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match post_type {
-            PostType::NPF => PostTypeSerdeShimInner::Blocks.serialize(serializer),
-            PostType::Legacy(t) => t.serialize(serializer),
+    impl<const V: bool> Debug for ShimBool<V> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("ShimBool").field("value", &V).finish()
         }
     }
 
-    pub(super) fn _deserialize<'de, D>(deserializer: D) -> Result<PostType, D::Error>
+    impl<const V1: bool, const V2: bool> PartialEq<ShimBool<V2>> for ShimBool<V1> {
+        fn eq(&self, _other: &ShimBool<V2>) -> bool {
+            V1 == V2
+        }
+    }
+
+    impl<const V: bool> Serialize for ShimBool<V> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            serializer.serialize_bool(V)
+        }
+    }
+
+    impl<'de, const V: bool> Deserialize<'de> for ShimBool<V> {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            if bool::deserialize(deserializer)? == V {
+                Ok(ShimBool::<V> {})
+            } else {
+                Err(serde::de::Error::custom("error"))
+            }
+        }
+    }
+
+    #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+    struct ShimEmpty {}
+
+    pub(super) fn serialize<S>(
+        opt: &Option<SubmissionInfo>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match opt {
+            None => ShimEmpty {}.serialize(serializer),
+            Some(val) => Shim {
+                is_submission: ShimBool::<true>,
+                info: val.to_owned(),
+            }.serialize(serializer),
+        }
+    }
+
+    pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<Option<SubmissionInfo>, D::Error>
     where
         D: Deserializer<'de>,
     {
-        match PostTypeSerdeShimOuter::deserialize(deserializer)? {
-            PostTypeSerdeShimOuter::NPF(_) => Ok(PostType::NPF),
-            PostTypeSerdeShimOuter::Legacy(t) => Ok(PostType::Legacy(t)),
+        match Option::<Shim>::deserialize(deserializer)? {
+            Some(Shim { is_submission: _, info }) => Ok(Some(info)),
+            None => Ok(None),
         }
     }
 }
