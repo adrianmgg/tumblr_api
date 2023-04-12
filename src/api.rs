@@ -1,30 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-// <https://www.tumblr.com/docs/en/api/v2#posts--retrieve-published-posts> (the section under "Response" titled "Fields available for all Post types:")
-
-// types listed at https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format, in the "type" row of the table under "Response"
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum PostType {
-    /// NPF format post
-    // "If formatting as NPF, the type will be blocks"
-    #[serde(rename = "blocks")]
-    NPF,
-    // "if formatting as legacy, the type will be one of the original legacy types (text, photo, quote, chat, link, video, audio)"
-    Legacy(LegacyPostType),
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum LegacyPostType {
-    Text,
-    Photo,
-    Quote,
-    Chat,
-    Link,
-    Video,
-    Audio,
-}
 
 // https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -33,7 +8,7 @@ pub struct NPFPost {
     /// The short name used to uniquely identify a blog
     pub blog_name: String,
     /// The post's unique ID
-    #[serde(with = "post_id_serde")]
+    #[serde(flatten, with = "post_id_serde")]
     pub id: i64,
     /// "The post's unique "genesis" ID as a String. Only available to the post owner in certain circumstances."
     /// (longer explanation [here](https://www.tumblr.com/docs/en/api/v2#posts--retrieve-published-posts), in the footnote at the bottom of the "Response" section)
@@ -41,8 +16,10 @@ pub struct NPFPost {
     /// "The location of the post"
     pub post_url: String,
     /// "The type of post"
+    /// 
+    /// **currently not actually checked -- since we're only supporting NPF so far anyways this should only ever be "blocks"**
     #[serde(rename = "type")]
-    pub post_type: String, // TODO handle this properly
+    pub post_type: String,
     pub timestamp: i64, // TODO "The time of the post, in seconds since the epoch"
     pub date: String,   // TODO "The GMT date and time of the post, as a string"
     // /// "The post format"
@@ -53,12 +30,10 @@ pub struct NPFPost {
     /// "Tags applied to the post"
     pub tags: Vec<String>,
     // TODO "bookmarklet", "mobile" old-style only?
-    /// "The URL for the source of the content (for quotes, reblogs, etc.).
-    ///  Exists only if there's a content source."
-    pub source_url: Option<String>,
-    /// "The title of the source site. Exists only if there's a content source."
-    // TODO - do source_url and source_title *always* exist when the other does?
-    pub source_title: Option<String>,
+    /// information about the source of the content.
+    /// "Exists only if there's a content source."
+    #[serde(flatten)]
+    pub source: Option<SourceInfo>,
     /// "Indicates if a user has already liked a post or not.
     ///  Exists only if the request is fully authenticated with OAuth."
     pub liked: bool,
@@ -66,19 +41,13 @@ pub struct NPFPost {
     pub state: PostState,
     /// "Indicates whether the post is stored in the Neue Post Format"
     pub is_blocks_post_format: bool,
-
-    // // /// "The post type. If formatting as NPF, the type will be blocks; if formatting as legacy, the type will be one of the original legacy types (text, photo, quote, chat, link, video, audio)."
-    // // #[serde(rename = "type", with = "postcommon_type_serde_bodge")]
-    // // pub post_type: PostType,
     /// (undocumented) the post's original type? only present on npf posts.
     pub original_type: String,
     /// (undocumented?)
     // wait is this one actually not mentioned in the docs anywhere?
     pub blog: Blog,
-    pub is_blazed: bool,
-    pub is_blaze_pending: bool,
-    pub can_ignite: bool,
-    pub can_blaze: bool,
+    #[serde(flatten)]
+    pub blaze_info: BlazeInfo,
     /// "Short text summary to the end of the post URL"
     pub slug: String,
     /// "Short text summary to the end of the post URL"
@@ -97,11 +66,8 @@ pub struct NPFPost {
     pub layout: Vec<serde_json::Value>,
     // TODO
     pub trail: Vec<serde_json::Value>,
-    pub can_like: bool,
-    pub interactability_reblog: Interactability,
-    pub can_reblog: bool,
-    pub can_send_in_message: bool,
-    pub can_reply: bool,
+    #[serde(flatten)]
+    interactability: InteractabilityInfo,
     pub display_avatar: bool,
     // TODO specifically when does this one show up? most posts didnt have it
     pub is_pinned: Option<bool>,
@@ -148,7 +114,7 @@ pub struct Blog {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum Interactability {
+pub enum ReblogInteractability {
     // TODO is this all the variants?
     Everyone,
     Noone,
@@ -162,7 +128,7 @@ pub struct AskInfo {
 }
 
 // TODO make this an enum on anon / not anon ?
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct SubmissionInfo {
     /// "Author of post, only available when submission is not anonymous"
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -276,3 +242,31 @@ mod post_id_serde {
         IdShim::deserialize(deserializer).map(|shim| shim.id)
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct SourceInfo {
+    /// "The URL for the source of the content (for quotes, reblogs, etc.)"
+    pub source_url: String,
+    /// "The title of the source site"
+    pub source_title: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct BlazeInfo {
+    pub is_blazed: bool,
+    pub is_blaze_pending: bool,
+    pub can_ignite: bool,
+    pub can_blaze: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct InteractabilityInfo {
+    pub can_like: bool,
+    pub interactability_reblog: ReblogInteractability,
+    pub can_reblog: bool,
+    pub can_send_in_message: bool,
+    pub can_reply: bool,
+}
+
+
+
