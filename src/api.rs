@@ -1,83 +1,156 @@
-use serde::{Deserialize, Serialize};
+use std::fmt;
 
+use serde::{Deserialize, Deserializer, de::{Visitor, self}, Serialize};
 
-// https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-// #[serde(deny_unknown_fields)]
+// // https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
+#[derive(Debug, PartialEq, Eq)]
+// // #[serde(deny_unknown_fields)]
 pub struct NPFPost {
     /// The short name used to uniquely identify a blog
     pub blog_name: String,
     /// The post's unique ID
-    #[serde(flatten, with = "post_id_serde")]
     pub id: i64,
-    /// "The post's unique "genesis" ID as a String. Only available to the post owner in certain circumstances."
-    /// (longer explanation [here](https://www.tumblr.com/docs/en/api/v2#posts--retrieve-published-posts), in the footnote at the bottom of the "Response" section)
-    pub genesis_post_id: Option<String>,
-    /// "The location of the post"
-    pub post_url: String,
-    /// "The type of post"
-    /// 
-    /// **currently not actually checked -- since we're only supporting NPF so far anyways this should only ever be "blocks"**
-    #[serde(rename = "type")]
-    pub post_type: String,
-    pub timestamp: i64, // TODO "The time of the post, in seconds since the epoch"
-    pub date: String,   // TODO "The GMT date and time of the post, as a string"
-    // /// "The post format"
-    // (only present on old-style posts)
-    // pub format: PostFormat,
-    /// "The key used to reblog this post, see the `/post/reblog` method"
-    pub reblog_key: String,
-    /// "Tags applied to the post"
-    pub tags: Vec<String>,
-    // TODO "bookmarklet", "mobile" old-style only?
-    /// information about the source of the content.
-    /// "Exists only if there's a content source."
-    #[serde(flatten)]
-    pub source: Option<SourceInfo>,
-    /// "Indicates if a user has already liked a post or not.
-    ///  Exists only if the request is fully authenticated with OAuth."
-    pub liked: bool,
-    /// "Indicates the current state of the post"
-    pub state: PostState,
-    /// "Indicates whether the post is stored in the Neue Post Format"
-    pub is_blocks_post_format: bool,
-    /// (undocumented) the post's original type? only present on npf posts.
-    pub original_type: String,
-    /// (undocumented?)
-    // wait is this one actually not mentioned in the docs anywhere?
-    pub blog: Blog,
-    #[serde(flatten)]
-    pub blaze_info: BlazeInfo,
-    /// "Short text summary to the end of the post URL"
-    pub slug: String,
-    /// "Short text summary to the end of the post URL"
-    pub short_url: String,
-    pub summary: String,
-    pub should_open_in_legacy: bool,
-    // TODO type?
-    pub recommended_source: serde_json::Value,
-    // TODO type?
-    pub recommended_color: serde_json::Value,
-    pub followed: bool,
-    // TODO - should this be nullable? (check what a no-notes post gives)
-    pub note_count: i32,
-    pub content: Vec<super::npf::ContentBlock>,
-    // TODO
-    pub layout: Vec<serde_json::Value>,
-    // TODO
-    pub trail: Vec<serde_json::Value>,
-    #[serde(flatten)]
-    interactability: InteractabilityInfo,
-    pub display_avatar: bool,
-    // TODO specifically when does this one show up? most posts didnt have it
-    pub is_pinned: Option<bool>,
-    #[serde(flatten)]
-    pub ask_info: Option<AskInfo>,
-    #[serde(flatten, with = "post_submission_info_serde")]
-    pub submission_info: Option<SubmissionInfo>,
-    /// fields not captured by anything else
-    #[serde(flatten)]
-    pub other_fields: serde_json::Map<String, serde_json::Value>,
+//     /// "The post's unique "genesis" ID as a String. Only available to the post owner in certain circumstances."
+//     /// (longer explanation [here](https://www.tumblr.com/docs/en/api/v2#posts--retrieve-published-posts), in the footnote at the bottom of the "Response" section)
+//     pub genesis_post_id: Option<String>,
+//     /// "The location of the post"
+//     pub post_url: String,
+//     /// "The type of post"
+//     /// 
+//     /// **currently not actually checked -- since we're only supporting NPF so far anyways this should only ever be "blocks"**
+//     #[serde(rename = "type")]
+//     pub post_type: String,
+//     pub timestamp: i64, // TODO "The time of the post, in seconds since the epoch"
+//     pub date: String,   // TODO "The GMT date and time of the post, as a string"
+//     // /// "The post format"
+//     // (only present on old-style posts)
+//     // pub format: PostFormat,
+//     /// "The key used to reblog this post, see the `/post/reblog` method"
+//     pub reblog_key: String,
+//     /// "Tags applied to the post"
+//     pub tags: Vec<String>,
+//     // TODO "bookmarklet", "mobile" old-style only?
+//     /// information about the source of the content.
+//     /// "Exists only if there's a content source."
+//     #[serde(flatten)]
+//     pub source: Option<SourceInfo>,
+//     /// "Indicates if a user has already liked a post or not.
+//     ///  Exists only if the request is fully authenticated with OAuth."
+//     pub liked: bool,
+//     /// "Indicates the current state of the post"
+//     pub state: PostState,
+//     /// "Indicates whether the post is stored in the Neue Post Format"
+//     pub is_blocks_post_format: bool,
+//     /// (undocumented) the post's original type? only present on npf posts.
+//     pub original_type: String,
+//     /// (undocumented?)
+//     // wait is this one actually not mentioned in the docs anywhere?
+//     pub blog: Blog,
+//     #[serde(flatten)]
+//     pub blaze_info: BlazeInfo,
+//     /// "Short text summary to the end of the post URL"
+//     pub slug: String,
+//     /// "Short text summary to the end of the post URL"
+//     pub short_url: String,
+//     pub summary: String,
+//     pub should_open_in_legacy: bool,
+//     // TODO type?
+//     pub recommended_source: serde_json::Value,
+//     // TODO type?
+//     pub recommended_color: serde_json::Value,
+//     pub followed: bool,
+//     // TODO - should this be nullable? (check what a no-notes post gives)
+//     pub note_count: i32,
+//     pub content: Vec<super::npf::ContentBlock>,
+//     // TODO
+//     pub layout: Vec<serde_json::Value>,
+//     // TODO
+//     pub trail: Vec<serde_json::Value>,
+//     #[serde(flatten)]
+//     interactability: InteractabilityInfo,
+//     pub display_avatar: bool,
+//     // TODO specifically when does this one show up? most posts didnt have it
+//     pub is_pinned: Option<bool>,
+//     #[serde(flatten)]
+//     pub ask_info: Option<AskInfo>,
+//     #[serde(flatten, with = "post_submission_info_serde")]
+//     pub submission_info: Option<SubmissionInfo>,
+//     /// fields not captured by anything else
+//     #[serde(flatten)]
+//     pub other_fields: serde_json::Map<String, serde_json::Value>,
+}
+
+impl<'de> Deserialize<'de> for NPFPost {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>
+    {
+        #[derive(serde_enum_str::Deserialize_enum_str)]
+        #[serde(rename_all = "snake_case")]
+        enum Field {
+            Id, IdString,
+            BlogName,
+            #[serde(other)]
+            Unknown(String),
+        }
+
+        struct NPFPostVisitor;
+        impl<'de> Visitor<'de> for NPFPostVisitor {
+            type Value = NPFPost;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a tumblr post")  // TODO could phrase this better
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut id = None;
+                // (we just track whether we were given this value since we don't actually use it)
+                let mut got_id_string = false;
+                let mut blog_name = None;
+
+                macro_rules! duplicate_if_some {
+                    ($var:ident, $field_name:expr) => {
+                        if $var.is_some() { return Err(de::Error::duplicate_field($field_name)); }
+                    };
+                    ($var:ident) => { duplicate_if_some!($var, stringify!($var)); }
+                }
+
+                macro_rules! simple_field {
+                    ($var:ident, $field_name:expr) => {
+                        {
+                            duplicate_if_some!($var, $field_name);
+                            $var = Some(map.next_value()?);
+                        }
+                    };
+                    ($var:ident) => { { simple_field!($var, stringify!($var)); } };
+                }
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Id => simple_field!(id),
+                        Field::IdString => {
+                            if got_id_string {
+                                return Err(de::Error::duplicate_field("id_string"));
+                            }
+                            map.next_value::<String>()?;
+                            got_id_string = true;
+                        }
+                        Field::BlogName => simple_field!(blog_name),
+                        Field::Unknown(_) => {},
+                    }
+                }
+                let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
+                let blog_name = blog_name.ok_or_else(|| de::Error::missing_field("blog_name"))?;
+                Ok(NPFPost { blog_name, id })
+            }
+        }
+
+        const FIELDS: &[&str] = &["id", "id_string", "blog_name"];
+        deserializer.deserialize_struct("Post", FIELDS, NPFPostVisitor)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -267,6 +340,3 @@ pub struct InteractabilityInfo {
     pub can_send_in_message: bool,
     pub can_reply: bool,
 }
-
-
-
