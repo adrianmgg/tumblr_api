@@ -1,6 +1,6 @@
 macro_rules! json_serde_eq {
     ($type:ty, $json:tt, $thing:expr) => {{
-        let thing = $thing;
+        let thing: $type = $thing;
         let json: serde_json::Value = serde_json::from_str($json).unwrap();
         let serialized = serde_json::to_value(&thing).unwrap();
         assert_eq!(serialized, json);
@@ -11,7 +11,7 @@ macro_rules! json_serde_eq {
 
 macro_rules! json_de_eq {
     ($type:ty, $json:tt, $thing:expr) => {{
-        let thing = $thing;
+        let thing: $type = $thing;
         let json: serde_json::Value = serde_json::from_str($json).unwrap();
         let deserialized: $type = serde_json::from_value(json).unwrap();
         assert_eq!(thing, deserialized);
@@ -30,16 +30,15 @@ fn content_block_text() {
     json_serde_eq!(
         ContentBlock,
         r#"{"type":"text", "text":"some bold indented text", "subtype": "indented", "indent_level": 1, "formatting":[{"start":5,"end":9,"type":"bold"}]}"#,
-        ContentBlock::Text(
-            ContentBlockText::builder()
-                .text("some bold indented text")
-                .subtype(TextSubtype::Indented)
-                .indent_level(1)
-                .formatting(vec![InlineFormat::Bold {
-                    range: InlineFormatRange { start: 5, end: 9 }
-                }])
-                .build()
-        )
+        ContentBlockText::builder()
+            .text("some bold indented text")
+            .subtype(TextSubtype::Indented)
+            .indent_level(1)
+            .formatting(vec![InlineFormat::Bold {
+                range: InlineFormatRange { start: 5, end: 9 }
+            }])
+            .build()
+            .into()
     )
 }
 
@@ -48,7 +47,7 @@ fn content_block_attribution_empty_list() {
     json_de_eq!(
         ContentBlock,
         r#"{"type": "image", "media": [], "attribution": []}"#,
-        ContentBlock::Image(ContentBlockImage::builder().media(vec![]).build())
+        ContentBlockImage::builder().media(vec![]).build().into()
     );
 }
 

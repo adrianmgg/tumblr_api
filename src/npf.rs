@@ -60,6 +60,42 @@ pub enum ContentBlock {
     Poll(ContentBlockPoll),
 }
 
+impl From<ContentBlockText> for ContentBlock {
+    fn from(val: ContentBlockText) -> Self {
+        ContentBlock::Text(val)
+    }
+}
+impl From<ContentBlockImage> for ContentBlock {
+    fn from(val: ContentBlockImage) -> Self {
+        ContentBlock::Image(val)
+    }
+}
+impl From<ContentBlockLink> for ContentBlock {
+    fn from(val: ContentBlockLink) -> Self {
+        ContentBlock::Link(val)
+    }
+}
+impl From<ContentBlockAudio> for ContentBlock {
+    fn from(val: ContentBlockAudio) -> Self {
+        ContentBlock::Audio(val)
+    }
+}
+impl From<ContentBlockVideo> for ContentBlock {
+    fn from(val: ContentBlockVideo) -> Self {
+        ContentBlock::Video(val)
+    }
+}
+impl From<ContentBlockPaywall> for ContentBlock {
+    fn from(val: ContentBlockPaywall) -> Self {
+        ContentBlock::Paywall(val)
+    }
+}
+impl From<ContentBlockPoll> for ContentBlock {
+    fn from(val: ContentBlockPoll) -> Self {
+        ContentBlock::Poll(val)
+    }
+}
+
 /// <https://www.tumblr.com/docs/npf#content-block-type-text>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
 pub struct ContentBlockText {
