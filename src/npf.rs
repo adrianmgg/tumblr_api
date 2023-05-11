@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize, Deserializer};
+use typed_builder::TypedBuilder;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -48,173 +49,239 @@ where
 
 /// <https://www.tumblr.com/docs/npf#content-blocks>
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
+#[serde(tag = "type", deny_unknown_fields)]
 pub enum ContentBlock {
-    /// <https://www.tumblr.com/docs/npf#content-block-type-text>
-    Text {
-        text: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        subtype: Option<TextSubtype>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        indent_level: Option<i32>,
-        #[serde(skip_serializing_if = "Option::is_none", default)]
-        formatting: Option<Vec<InlineFormat>>,
-    },
-    /// <https://www.tumblr.com/docs/npf#content-block-type-image>
-    Image {
-        /// "An array of [MediaObject]s which represent different available sizes of this image asset."
-        media: Vec<MediaObject>,
-        /// "Colors used in the image."
-        /// 
-        /// (undocumented) note: colors may instead be listed under [`MediaObject::colors`] in individual entries of [`ContentBlock::Image::media`]
-        #[serde(skip_serializing_if = "Option::is_none")]
-        colors: Option<HashMap<String, String>>,
-        /// "A feedback token to use when this image block is a GIF Search result."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        feedback_token: Option<String>,
-        // (one spot in the docs says that an image's `poster` goes here -- that's wrong afaict, it goes in the media object)
-        // TODO doc ("See the Attributions section for details about these objects.")
-        // TODO some posts sent with `"attribution": []` ???
-        #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
-        attribution: Option<Attribution>,
-        /// "Text used to describe the image, for screen readers. 4096 character maximum."
-        // TODO enforce that max length on serialize
-        #[serde(skip_serializing_if = "Option::is_none")]
-        alt_text: Option<String>,
-        /// "A caption typically shown under the image. 4096 character maximum."
-        // TODO enforce that max length on serialize
-        #[serde(skip_serializing_if = "Option::is_none")]
-        caption: Option<String>,
-        /// (undocumented) exif tags associated with the image
-        ///
-        /// some sample values:
-        /// ```json
-        /// {"Time": 1590426081, "FocalLength": 3, "FocalLength35mmEquiv": 3, "Aperture": 1.8, "ExposureTime": 0.0011904761904761906, "ISO": 20, "CameraMake": "Apple", "CameraModel": "iPhone 7", "Lens": "3mm"}
-        /// {"Time": 1647793571}
-        /// {"Time": "1625497381"}
-        /// ```
-        /// (note how `"Time"` is sometimes a string!)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        exif: Option<serde_json::Map<String, serde_json::Value>>,
-        /// (undocumented)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        clickthrough: Option<Clickthrough>,
-    },
-    /// <https://www.tumblr.com/docs/npf#content-block-type-link>
-    Link {
-        /// "The URL to use for the link block."
-        url: String,
-        /// "The title of where the link goes."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        title: Option<String>,
-        /// "The description of where the link goes."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        /// "The author of the link's content."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        author: Option<String>,
-        /// "The name of the site being linked to."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        site_name: Option<String>,
-        /// "Supplied on NPF Post consumption, ignored during NPF Post creation."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        display_url: Option<String>,
-        /// "Supplied on NPF Post consumption, ignored during NPF Post creation."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        poster: Option<Vec<MediaObject>>,
-    },
-    /// <https://www.tumblr.com/docs/npf#content-block-type-audio>
-    Audio {
-        // TODO - "either the media field or url field must be present" -- should the types of this represent the either/or-ness of that? (also applies to ::Video)
-        /// "The URL to use for the audio block, if no media is present."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        url: Option<String>,
-        /// "The Media Object to use for the audio block, if no url is present."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        media: Option<MediaObject>,
-        // TODO should maybe have this as an enum with an 'other' variant
-        /// "The provider of the audio source, whether it's tumblr for native audio or a trusted third party."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        provider: Option<String>,
-        /// "The title of the audio asset."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        title: Option<String>,
-        /// "The artist of the audio asset."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        artist: Option<String>,
-        /// "The album from which the audio asset originated."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        album: Option<String>,
-        /// "An image media object to use as a "poster" for the audio track, usually album art."
-        #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "single_or_list_of_one")]
-        poster: Option<MediaObject>,
-        /// "HTML code that could be used to embed this audio track into a webpage."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        embed_html: Option<String>,
-        /// "A URL to the embeddable content to use as an iframe."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        embed_url: Option<String>,
-        /// "Optional provider-specific metadata about the audio track."
-        // TODO is Value the right thing to use here?
-        #[serde(skip_serializing_if = "Option::is_none")]
-        metadata: Option<serde_json::Value>,
-        /// "Optional attribution information about where the audio track came from."
-        #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
-        attribution: Option<Attribution>,
-    },
-    /// <https://www.tumblr.com/docs/npf#content-block-type-video>
-    Video {
-        /// "The URL to use for the video block, if no media is present."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        url: Option<String>,
-        /// "The Media Object to use for the video block, if no url is present."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        media: Option<MediaObject>,
-        /// "The provider of the video, whether it's tumblr for native video or a trusted third party."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        provider: Option<String>,
-        /// "HTML code that could be used to embed this video into a webpage."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        embed_html: Option<String>,
-        /// "An embed iframe object used for constructing video iframes."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        embed_iframe: Option<EmbedIframe>,
-        /// "A URL to the embeddable content to use as an iframe."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        embed_url: Option<String>,
-        /// "An image media object to use as a "poster" for the video, usually a single frame."
-        // (table in the docs say this is a single MediaObject, but it's actually a list of them)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        poster: Option<Vec<MediaObject>>,
-        /// "Optional provider-specific metadata about the video."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        metadata: Option<serde_json::Value>,
-        /// "Optional attribution information about where the video came from."
-        #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
-        attribution: Option<Attribution>,
-        /// "Whether this video can be played on a cellular connection."
-        #[serde(skip_serializing_if = "Option::is_none")]
-        can_autoplay_on_cellular: Option<bool>,
-        // kinda undocumented, it's in one of the examples in the docs but they never explain it
-        // TODO sometimes just a single value rather than a list
-        #[serde(skip_serializing_if = "Option::is_none")]
-        filmstrip: Option<MediaObject>,
-    },
-    /// <https://www.tumblr.com/docs/npf#content-block-type-paywall>
-    Paywall {
-        // TODO
-    },
+    Text(ContentBlockText),
+    Image(ContentBlockImage),
+    Link(ContentBlockLink),
+    Audio(ContentBlockAudio),
+    Video(ContentBlockVideo),
+    Paywall(ContentBlockPaywall),
+    Poll(ContentBlockPoll),
+}
+
+/// <https://www.tumblr.com/docs/npf#content-block-type-text>
+#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub struct ContentBlockText {
+    pub text: String,
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subtype: Option<TextSubtype>,
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub indent_level: Option<i32>,
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub formatting: Option<Vec<InlineFormat>>,
+}
+
+/// <https://www.tumblr.com/docs/npf#content-block-type-image>
+#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub struct ContentBlockImage {
+    /// "An array of [MediaObject]s which represent different available sizes of this image asset."
+    pub media: Vec<MediaObject>,
+    /// "Colors used in the image."
+    /// 
+    /// (undocumented) note: colors may instead be listed under [`MediaObject::colors`] in individual entries of [`ContentBlock::Image::media`]
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub colors: Option<HashMap<String, String>>,
+    /// "A feedback token to use when this image block is a GIF Search result."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub feedback_token: Option<String>,
+    // (one spot in the docs says that an image's `poster` goes here -- that's wrong afaict, it goes in the media object)
+    // TODO doc ("See the Attributions section for details about these objects.")
+    // TODO some posts sent with `"attribution": []` ???
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
+    pub attribution: Option<Attribution>,
+    /// "Text used to describe the image, for screen readers. 4096 character maximum."
+    // TODO enforce that max length on serialize
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alt_text: Option<String>,
+    /// "A caption typically shown under the image. 4096 character maximum."
+    // TODO enforce that max length on serialize
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub caption: Option<String>,
+    /// (undocumented) exif tags associated with the image
+    ///
+    /// some sample values:
+    /// ```json
+    /// {"Time": 1590426081, "FocalLength": 3, "FocalLength35mmEquiv": 3, "Aperture": 1.8, "ExposureTime": 0.0011904761904761906, "ISO": 20, "CameraMake": "Apple", "CameraModel": "iPhone 7", "Lens": "3mm"}
+    /// {"Time": 1647793571}
+    /// {"Time": "1625497381"}
+    /// ```
+    /// (note how `"Time"` is sometimes a string!)
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exif: Option<serde_json::Map<String, serde_json::Value>>,
     /// (undocumented)
-    // TODO - some of these fields should probably be optiona
-    Poll {
-        client_id: String,
-        question: String,
-        answers: Vec<PollAnswer>,
-        settings: PollSettings,
-        // TODO - timestamp string, should probably parse it
-        created_at: String,
-        timestamp: i64,
-    },
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clickthrough: Option<Clickthrough>,
+}
+
+/// <https://www.tumblr.com/docs/npf#content-block-type-link>
+#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub struct ContentBlockLink {
+    /// "The URL to use for the link block."
+    pub url: String,
+    /// "The title of where the link goes."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// "The description of where the link goes."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// "The author of the link's content."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    /// "The name of the site being linked to."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub site_name: Option<String>,
+    /// "Supplied on NPF Post consumption, ignored during NPF Post creation."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_url: Option<String>,
+    /// "Supplied on NPF Post consumption, ignored during NPF Post creation."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub poster: Option<Vec<MediaObject>>,
+}
+
+/// <https://www.tumblr.com/docs/npf#content-block-type-audio>
+#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub struct ContentBlockAudio {
+    // TODO - "either the media field or url field must be present" -- should the types of this represent the either/or-ness of that? (also applies to ::Video)
+    /// "The URL to use for the audio block, if no media is present."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// "The Media Object to use for the audio block, if no url is present."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media: Option<MediaObject>,
+    // TODO should maybe have this as an enum with an 'other' variant
+    /// "The provider of the audio source, whether it's tumblr for native audio or a trusted third party."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    /// "The title of the audio asset."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// "The artist of the audio asset."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artist: Option<String>,
+    /// "The album from which the audio asset originated."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub album: Option<String>,
+    /// "An image media object to use as a "poster" for the audio track, usually album art."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "single_or_list_of_one")]
+    pub poster: Option<MediaObject>,
+    /// "HTML code that could be used to embed this audio track into a webpage."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embed_html: Option<String>,
+    /// "A URL to the embeddable content to use as an iframe."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embed_url: Option<String>,
+    /// "Optional provider-specific metadata about the audio track."
+    // TODO is Value the right thing to use here?
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+    /// "Optional attribution information about where the audio track came from."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
+    pub attribution: Option<Attribution>,
+}
+
+/// <https://www.tumblr.com/docs/npf#content-block-type-video>
+#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub struct ContentBlockVideo {
+    /// "The URL to use for the video block, if no media is present."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// "The Media Object to use for the video block, if no url is present."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media: Option<MediaObject>,
+    /// "The provider of the video, whether it's tumblr for native video or a trusted third party."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    /// "HTML code that could be used to embed this video into a webpage."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embed_html: Option<String>,
+    /// "An embed iframe object used for constructing video iframes."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embed_iframe: Option<EmbedIframe>,
+    /// "A URL to the embeddable content to use as an iframe."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embed_url: Option<String>,
+    /// "An image media object to use as a "poster" for the video, usually a single frame."
+    // (table in the docs say this is a single MediaObject, but it's actually a list of them)
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub poster: Option<Vec<MediaObject>>,
+    /// "Optional provider-specific metadata about the video."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+    /// "Optional attribution information about where the video came from."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
+    pub attribution: Option<Attribution>,
+    /// "Whether this video can be played on a cellular connection."
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub can_autoplay_on_cellular: Option<bool>,
+    // kinda undocumented, it's in one of the examples in the docs but they never explain it
+    // TODO sometimes just a single value rather than a list
+    #[builder(default, setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filmstrip: Option<MediaObject>,
+}
+
+/// <https://www.tumblr.com/docs/npf#content-block-type-paywall>
+#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub struct ContentBlockPaywall {
+    // TODO
+}
+
+/// (undocumented)
+// TODO - some of these fields should probably be optiona
+#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub struct ContentBlockPoll {
+    pub client_id: String,
+    pub question: String,
+    pub answers: Vec<PollAnswer>,
+    pub settings: PollSettings,
+    // TODO - timestamp string, should probably parse it
+    pub created_at: String,
+    pub timestamp: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -284,42 +351,52 @@ pub struct InlineFormatRange {
 }
 
 /// <https://www.tumblr.com/docs/npf#media-objects>
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct MediaObject {
     /// "The canonical URL of the media asset"
     pub url: String,
     /// "The MIME type of the media asset, or a best approximation will be made based on the given URL"
+    #[builder(default, setter(strip_option))]
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
     /// "The width of the media asset, if that makes sense (for images and videos, but not for audio)"
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<i32>,
     /// "The height of the media asset, if that makes sense (for images and videos, but not for audio)"
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<i32>,
     /// "For display purposes, this indicates whether the dimensions are defaults"
     /// > If the original dimensions of the media are not known, a boolean flag [MediaObject.original_dimensions_missing] with a value of true will also be included in the media object. In this scenario, width and height will be assigned default dimensional values of 540 and 405 respectively. Please note that this field should only be available when consuming an NPF Post, it is not allowed during Post creation."
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_dimensions_missing: Option<bool>,
     /// "This indicates whether this media object is a cropped version of the original media"
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cropped: Option<bool>,
     /// "This indicates whether this media object has the same dimensions as the original media"
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_original_dimensions: Option<bool>,
     /// (undocumented)
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media_key: Option<String>,
     /// (undocumented) see [`ContentBlock::Image::colors`]
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub colors: Option<HashMap<String, String>>,
     /// <https://www.tumblr.com/docs/npf#gif-posters>
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    poster: Option<Box<MediaObject>>,
+    pub poster: Option<Box<MediaObject>>,
     /// (undocumented) video alternative for animated gif image
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    video: Option<Vec<MediaObject>>,
+    pub video: Option<Vec<MediaObject>>,
 }
 
 /// <https://www.tumblr.com/docs/npf#attributions>
