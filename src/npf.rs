@@ -49,7 +49,7 @@ where
 
 /// <https://www.tumblr.com/docs/npf#content-blocks>
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(tag = "type", deny_unknown_fields)]
+#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 pub enum ContentBlock {
     Text(ContentBlockText),
     Image(ContentBlockImage),
@@ -62,8 +62,8 @@ pub enum ContentBlock {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-text>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
 pub struct ContentBlockText {
+    #[builder(setter(into))]
     pub text: String,
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -78,7 +78,6 @@ pub struct ContentBlockText {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-image>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
 pub struct ContentBlockImage {
     /// "An array of [MediaObject]s which represent different available sizes of this image asset."
     pub media: Vec<MediaObject>,
@@ -89,23 +88,23 @@ pub struct ContentBlockImage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub colors: Option<HashMap<String, String>>,
     /// "A feedback token to use when this image block is a GIF Search result."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feedback_token: Option<String>,
     // (one spot in the docs says that an image's `poster` goes here -- that's wrong afaict, it goes in the media object)
     // TODO doc ("See the Attributions section for details about these objects.")
     // TODO some posts sent with `"attribution": []` ???
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
     pub attribution: Option<Attribution>,
     /// "Text used to describe the image, for screen readers. 4096 character maximum."
     // TODO enforce that max length on serialize
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alt_text: Option<String>,
     /// "A caption typically shown under the image. 4096 character maximum."
     // TODO enforce that max length on serialize
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub caption: Option<String>,
     /// (undocumented) exif tags associated with the image
@@ -128,28 +127,27 @@ pub struct ContentBlockImage {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-link>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
 pub struct ContentBlockLink {
     /// "The URL to use for the link block."
     pub url: String,
     /// "The title of where the link goes."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     /// "The description of where the link goes."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// "The author of the link's content."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
     /// "The name of the site being linked to."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub site_name: Option<String>,
     /// "Supplied on NPF Post consumption, ignored during NPF Post creation."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_url: Option<String>,
     /// "Supplied on NPF Post consumption, ignored during NPF Post creation."
@@ -160,11 +158,10 @@ pub struct ContentBlockLink {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-audio>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
 pub struct ContentBlockAudio {
     // TODO - "either the media field or url field must be present" -- should the types of this represent the either/or-ness of that? (also applies to ::Video)
     /// "The URL to use for the audio block, if no media is present."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     /// "The Media Object to use for the audio block, if no url is present."
@@ -173,19 +170,19 @@ pub struct ContentBlockAudio {
     pub media: Option<MediaObject>,
     // TODO should maybe have this as an enum with an 'other' variant
     /// "The provider of the audio source, whether it's tumblr for native audio or a trusted third party."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     /// "The title of the audio asset."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     /// "The artist of the audio asset."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub artist: Option<String>,
     /// "The album from which the audio asset originated."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub album: Option<String>,
     /// "An image media object to use as a "poster" for the audio track, usually album art."
@@ -193,11 +190,11 @@ pub struct ContentBlockAudio {
     #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "single_or_list_of_one")]
     pub poster: Option<MediaObject>,
     /// "HTML code that could be used to embed this audio track into a webpage."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_html: Option<String>,
     /// "A URL to the embeddable content to use as an iframe."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_url: Option<String>,
     /// "Optional provider-specific metadata about the audio track."
@@ -213,10 +210,9 @@ pub struct ContentBlockAudio {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-video>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
 pub struct ContentBlockVideo {
     /// "The URL to use for the video block, if no media is present."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     /// "The Media Object to use for the video block, if no url is present."
@@ -224,11 +220,11 @@ pub struct ContentBlockVideo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media: Option<MediaObject>,
     /// "The provider of the video, whether it's tumblr for native video or a trusted third party."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     /// "HTML code that could be used to embed this video into a webpage."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_html: Option<String>,
     /// "An embed iframe object used for constructing video iframes."
@@ -236,7 +232,7 @@ pub struct ContentBlockVideo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_iframe: Option<EmbedIframe>,
     /// "A URL to the embeddable content to use as an iframe."
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_url: Option<String>,
     /// "An image media object to use as a "poster" for the video, usually a single frame."
@@ -265,7 +261,6 @@ pub struct ContentBlockVideo {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-paywall>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
 pub struct ContentBlockPaywall {
     // TODO
 }
@@ -273,7 +268,6 @@ pub struct ContentBlockPaywall {
 /// (undocumented)
 // TODO - some of these fields should probably be optiona
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
 pub struct ContentBlockPoll {
     pub client_id: String,
     pub question: String,
