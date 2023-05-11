@@ -18,31 +18,28 @@ macro_rules! json_de_eq {
     }};
 }
 
-use npf::*;
+use tumblr_api::npf::*;
 
 #[test]
 fn content_block_text() {
     json_serde_eq!(
         ContentBlock,
         r#"{"type": "text", "text": "Hello world!"}"#,
-        ContentBlock::Text {
-            text: "Hello world!".to_string(),
-            subtype: None,
-            indent_level: None,
-            formatting: None,
-        }
+        ContentBlock::Text(ContentBlockText::builder().text("Hello world!").build())
     );
     json_serde_eq!(
         ContentBlock,
         r#"{"type":"text", "text":"some bold indented text", "subtype": "indented", "indent_level": 1, "formatting":[{"start":5,"end":9,"type":"bold"}]}"#,
-        ContentBlock::Text {
-            text: "some bold indented text".to_string(),
-            subtype: Some(TextSubtype::Indented),
-            indent_level: Some(1),
-            formatting: Some(vec![InlineFormat::Bold {
-                range: InlineFormatRange { start: 5, end: 9 }
-            }]),
-        }
+        ContentBlock::Text(
+            ContentBlockText::builder()
+                .text("some bold indented text")
+                .subtype(TextSubtype::Indented)
+                .indent_level(1)
+                .formatting(vec![InlineFormat::Bold {
+                    range: InlineFormatRange { start: 5, end: 9 }
+                }])
+                .build()
+        )
     )
 }
 
@@ -51,16 +48,7 @@ fn content_block_attribution_empty_list() {
     json_de_eq!(
         ContentBlock,
         r#"{"type": "image", "media": [], "attribution": []}"#,
-        ContentBlock::Image {
-            media: vec![],
-            colors: None,
-            feedback_token: None,
-            attribution: None,
-            alt_text: None,
-            caption: None,
-            exif: None,
-            clickthrough: None,
-        }
+        ContentBlock::Image(ContentBlockImage::builder().media(vec![]).build())
     );
 }
 
@@ -127,7 +115,7 @@ fn inline_format() {
         r#"{"start":13,"end":19,"type":"mention","blog":{"uuid":"t:123456abcdf","name":"david","url":"https://davidslog.com/"}}"#,
         InlineFormat::Mention {
             range: InlineFormatRange { start: 13, end: 19 },
-            blog: Blog {
+            blog: MentionBlog {
                 uuid: "t:123456abcdf".to_string(),
                 name: Some("david".to_string()),
                 url: Some("https://davidslog.com/".to_string()),
