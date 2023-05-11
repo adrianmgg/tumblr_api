@@ -385,9 +385,10 @@ pub struct InlineFormatRange {
 #[serde(deny_unknown_fields)]
 pub struct MediaObject {
     /// "The canonical URL of the media asset"
+    #[builder(setter(into))]
     pub url: String,
     /// "The MIME type of the media asset, or a best approximation will be made based on the given URL"
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
     /// "The width of the media asset, if that makes sense (for images and videos, but not for audio)"
@@ -412,7 +413,7 @@ pub struct MediaObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_original_dimensions: Option<bool>,
     /// (undocumented)
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media_key: Option<String>,
     /// (undocumented) see [`ContentBlock::Image::colors`]
