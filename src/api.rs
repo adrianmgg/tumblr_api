@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-
+use crate::npf;
 
 // https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -50,7 +50,7 @@ pub struct NPFPost {
     pub blaze_info: BlazeInfo,
     /// "Short text summary to the end of the post URL"
     pub slug: String,
-    /// "Short text summary to the end of the post URL"
+    /// "Short url for the post"
     pub short_url: String,
     pub summary: String,
     pub should_open_in_legacy: bool,
@@ -124,7 +124,7 @@ pub enum ReblogInteractability {
 pub struct AskInfo {
     pub asking_name: String,
     pub asking_url: String,
-    pub asking_avatar: Vec<crate::npf::MediaObject>,
+    pub asking_avatar: Vec<npf::MediaObject>,
 }
 
 // TODO make this an enum on anon / not anon ?
@@ -266,6 +266,139 @@ pub struct InteractabilityInfo {
     pub can_reblog: bool,
     pub can_send_in_message: bool,
     pub can_reply: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ApiResponse<RT> {
+    pub meta: ApiResponseMeta,
+    pub response: RT,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ApiResponseMeta {
+    /// "The 3-digit HTTP Status-Code (e.g., 200)"
+    pub status: i32,
+    /// "The HTTP Reason-Phrase (e.g., OK)"
+    pub msg: String,
+    /// unknown/unhandled fields
+    #[serde(flatten)]
+    pub other_fields: serde_json::Map<String, serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UserInfoResponse {
+    pub user: User,
+    /// unknown/unhandled fields
+    #[serde(flatten)]
+    pub other_fields: serde_json::Map<String, serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct User {
+    /// "The number of blogs the user is following"
+    pub following: i64,
+    /// "The default posting format - html, markdown, or raw"
+    pub default_post_format: String, // TODO enum
+    /// "The user's tumblr short name"
+    pub name: String,
+    /// "The total count of the user's likes"
+    pub likes: i64,
+    /// "Each item is a blog the user has permissions to post to"
+    pub blogs: Vec<UserInfoBlog>,
+    /// unknown/unhandled fields
+    #[serde(flatten)]
+    pub other_fields: serde_json::Map<String, serde_json::Value>,
+}
+
+// TODO this can probably be merged with the other `Blog`
+// TODO but if not give this a better name
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UserInfoBlog {
+    /// "the short name of the blog"
+    pub name: String,
+    /// "the URL of the blog"
+    pub url: String,
+    /// "the title of the blog"
+    pub title: String,
+    /// "indicates if this is the user's primary blog"
+    pub primary: bool,
+    /// "total count of followers for this blog"
+    pub followers: i64,
+    /// "indicate if posts are tweeted auto, Y, N"
+    pub tweet: String, // TODO to bool
+    /// "indicates whether a blog is public or private"
+    #[serde(rename = "type")]
+    pub blog_type: String, // TODO enum
+    /// unknown/unhandled fields
+    #[serde(flatten)]
+    pub other_fields: serde_json::Map<String, serde_json::Value>,
+}
+
+// https://www.tumblr.com/docs/en/api/v2#posts---createreblog-a-post-neue-post-format
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CreatePostRequest {
+    /// "An array of NPF content blocks to be used to make the post; in a reblog, this is any content you want to add."
+    pub content: Vec<crate::npf::ContentBlock>,
+    // /// "An array of NPF layout objects to be used to lay out the post content."
+    // pub layout: Option<Vec<tumblr_api::npf::LayoutObject>>, // TODO
+    /// "The initial state of the new post, such as "published" or "queued"."
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<CreatePostState>,
+    /// "The exact future date and time (ISO 8601 format) to publish the post, if desired. This parameter will be ignored unless the state parameter is "queue"."
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publish_on: Option<String>, // TODO some other type
+    /// "The exact date and time (ISO 8601 format) in the past to backdate the post, if desired. This backdating does not apply to when the post shows up in the Dashboard."
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<String>, // TODO some other type
+    /// "A comma-separated list of tags to associate with the post."
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<String>,
+    /// "A source attribution for the post content."
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+    /// "Whether or not to share this via any connected Twitter account on post publish. Defaults to the blog's global setting."
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub send_to_twitter: Option<bool>,
+    /// "Whether this should be a private answer, if this is an answer."
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_private: Option<bool>,
+    /// "A custom URL slug to use in the post's permalink URL"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slug: Option<String>,
+    /// "Who can interact with this when reblogging"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interactability_reblog: Option<ReblogInteractability>,
+}
+// TODO ^ currently just has the making a new post stuff, same endpoint is also the way to do reblogs.
+//      maybe best to do it as an enum of new post / reblog? since which fields are required is different
+//      between the two
+// TODO should we add `other_fields`s to requests too? or just response stuff
+
+/// https://www.tumblr.com/docs/en/api/v2#note-about-post-states
+/// "Posts can be in the following 'states' as indicated in requests to the post creation/editing endpoints"
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CreatePostState {
+    /// "the post should be publicly published immediately"
+    Published,
+    /// "the post should be added to the end of the blog's post queue"
+    Queue,
+    /// "the post should be saved as a draft"
+    Draft,
+    /// "the post should be privately published immediately"
+    Private,
+    /// "the post is a new submission"
+    Unapproved,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CreatePostResponse {
+    // TODO - "intentionally a string instead of an integer for 32bit device compatibility" - should make it an int
+    /// "the id of the created post"
+    id: String,
+    /// unknown/unhandled fields
+    #[serde(flatten)]
+    pub other_fields: serde_json::Map<String, serde_json::Value>,
 }
 
 
