@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
 use crate::npf;
 
 // https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
@@ -287,14 +288,14 @@ pub struct ApiResponseMeta {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UserInfoResponse {
-    pub user: User,
+    pub user: UserInfo,
     /// unknown/unhandled fields
     #[serde(flatten)]
     pub other_fields: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct User {
+pub struct UserInfo {
     /// "The number of blogs the user is following"
     pub following: i64,
     /// "The default posting format - html, markdown, or raw"
@@ -335,37 +336,46 @@ pub struct UserInfoBlog {
 }
 
 // https://www.tumblr.com/docs/en/api/v2#posts---createreblog-a-post-neue-post-format
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TypedBuilder)]
 pub struct CreatePostRequest {
     /// "An array of NPF content blocks to be used to make the post; in a reblog, this is any content you want to add."
     pub content: Vec<crate::npf::ContentBlock>,
     // /// "An array of NPF layout objects to be used to lay out the post content."
     // pub layout: Option<Vec<tumblr_api::npf::LayoutObject>>, // TODO
     /// "The initial state of the new post, such as "published" or "queued"."
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<CreatePostState>,
     /// "The exact future date and time (ISO 8601 format) to publish the post, if desired. This parameter will be ignored unless the state parameter is "queue"."
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub publish_on: Option<String>, // TODO some other type
     /// "The exact date and time (ISO 8601 format) in the past to backdate the post, if desired. This backdating does not apply to when the post shows up in the Dashboard."
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub date: Option<String>, // TODO some other type
     /// "A comma-separated list of tags to associate with the post."
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<String>,
     /// "A source attribution for the post content."
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_url: Option<String>,
     /// "Whether or not to share this via any connected Twitter account on post publish. Defaults to the blog's global setting."
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub send_to_twitter: Option<bool>,
     /// "Whether this should be a private answer, if this is an answer."
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_private: Option<bool>,
     /// "A custom URL slug to use in the post's permalink URL"
+    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slug: Option<String>,
     /// "Who can interact with this when reblogging"
+    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interactability_reblog: Option<ReblogInteractability>,
 }
@@ -374,7 +384,7 @@ pub struct CreatePostRequest {
 //      between the two
 // TODO should we add `other_fields`s to requests too? or just response stuff
 
-/// https://www.tumblr.com/docs/en/api/v2#note-about-post-states
+/// <https://www.tumblr.com/docs/en/api/v2#note-about-post-states>
 /// "Posts can be in the following 'states' as indicated in requests to the post creation/editing endpoints"
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]

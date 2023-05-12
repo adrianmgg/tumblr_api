@@ -38,7 +38,6 @@ fn content_block_text() {
                 range: InlineFormatRange { start: 5, end: 9 }
             }])
             .build()
-            .into()
     )
 }
 
@@ -47,7 +46,7 @@ fn content_block_attribution_empty_list() {
     json_de_eq!(
         ContentBlock,
         r#"{"type": "image", "media": [], "attribution": []}"#,
-        ContentBlockImage::builder().media(vec![]).build().into()
+        ContentBlockImage::builder().media(vec![]).build()
     );
 }
 

@@ -98,6 +98,7 @@ impl From<ContentBlockPoll> for ContentBlock {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-text>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[builder(doc, build_method(into))]
 pub struct ContentBlockText {
     #[builder(setter(into))]
     pub text: String,
@@ -114,12 +115,13 @@ pub struct ContentBlockText {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-image>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[builder(doc, build_method(into))]
 pub struct ContentBlockImage {
     /// "An array of [MediaObject]s which represent different available sizes of this image asset."
     pub media: Vec<MediaObject>,
     /// "Colors used in the image."
     /// 
-    /// (undocumented) note: colors may instead be listed under [`MediaObject::colors`] in individual entries of [`ContentBlock::Image::media`]
+    /// (undocumented) note: colors may instead be listed under [`MediaObject::colors`] in individual entries of [`ContentBlockImage::media`]
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub colors: Option<HashMap<String, String>>,
@@ -163,6 +165,7 @@ pub struct ContentBlockImage {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-link>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[builder(doc, build_method(into))]
 pub struct ContentBlockLink {
     /// "The URL to use for the link block."
     pub url: String,
@@ -194,6 +197,7 @@ pub struct ContentBlockLink {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-audio>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[builder(doc, build_method(into))]
 pub struct ContentBlockAudio {
     // TODO - "either the media field or url field must be present" -- should the types of this represent the either/or-ness of that? (also applies to ::Video)
     /// "The URL to use for the audio block, if no media is present."
@@ -246,6 +250,7 @@ pub struct ContentBlockAudio {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-video>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[builder(doc, build_method(into))]
 pub struct ContentBlockVideo {
     /// "The URL to use for the video block, if no media is present."
     #[builder(default, setter(into, strip_option))]
@@ -297,6 +302,7 @@ pub struct ContentBlockVideo {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-paywall>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[builder(doc, build_method(into))]
 pub struct ContentBlockPaywall {
     // TODO
 }
@@ -304,6 +310,7 @@ pub struct ContentBlockPaywall {
 /// (undocumented)
 // TODO - some of these fields should probably be optiona
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[builder(doc, build_method(into))]
 pub struct ContentBlockPoll {
     pub client_id: String,
     pub question: String,
@@ -382,6 +389,7 @@ pub struct InlineFormatRange {
 
 /// <https://www.tumblr.com/docs/npf#media-objects>
 #[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
+#[builder(doc)]
 #[serde(deny_unknown_fields)]
 pub struct MediaObject {
     /// "The canonical URL of the media asset"
@@ -416,7 +424,7 @@ pub struct MediaObject {
     #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media_key: Option<String>,
-    /// (undocumented) see [`ContentBlock::Image::colors`]
+    /// (undocumented) see [`ContentBlockImage::colors`]
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub colors: Option<HashMap<String, String>>,
