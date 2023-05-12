@@ -336,55 +336,38 @@ pub enum TextSubtype {
 
 /// <https://www.tumblr.com/docs/npf#inline-formatting-within-a-text-block>
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct InlineFormat {
+    pub start: i32,
+    pub end: i32,
+    #[serde(flatten)]
+    pub format: InlineFormatType,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
-pub enum InlineFormat {
+pub enum InlineFormatType {
     /// <https://www.tumblr.com/docs/npf#inline-format-types-bold-italic-strikethrough-small>
-    Bold {
-        #[serde(flatten)]
-        range: InlineFormatRange,
-    },
+    Bold,
     /// <https://www.tumblr.com/docs/npf#inline-format-types-bold-italic-strikethrough-small>
-    Italic {
-        #[serde(flatten)]
-        range: InlineFormatRange,
-    },
+    Italic,
     /// <https://www.tumblr.com/docs/npf#inline-format-types-bold-italic-strikethrough-small>
-    Strikethrough {
-        #[serde(flatten)]
-        range: InlineFormatRange,
-    },
+    Strikethrough,
     /// <https://www.tumblr.com/docs/npf#inline-format-types-bold-italic-strikethrough-small>
-    Small {
-        #[serde(flatten)]
-        range: InlineFormatRange,
-    },
+    Small,
     /// <https://www.tumblr.com/docs/npf#inline-format-type-link>
     Link {
-        #[serde(flatten)]
-        range: InlineFormatRange,
         url: String,
     },
     /// <https://www.tumblr.com/docs/npf#inline-format-type-mention>
     Mention {
-        #[serde(flatten)]
-        range: InlineFormatRange,
         blog: MentionBlog,
     },
     /// <https://www.tumblr.com/docs/npf#inline-format-type-color>
     Color {
-        #[serde(flatten)]
-        range: InlineFormatRange,
         /// "The color to use, in standard hex format, with leading #."
         // TODO - should actually parse these rather than leave them as strings
         hex: String,
     },
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct InlineFormatRange {
-    pub start: i32,
-    pub end: i32,
 }
 
 /// <https://www.tumblr.com/docs/npf#media-objects>

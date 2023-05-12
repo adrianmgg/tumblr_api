@@ -34,8 +34,10 @@ fn content_block_text() {
             .text("some bold indented text")
             .subtype(TextSubtype::Indented)
             .indent_level(1)
-            .formatting(vec![InlineFormat::Bold {
-                range: InlineFormatRange { start: 5, end: 9 }
+            .formatting(vec![InlineFormat {
+                start: 5,
+                end: 9,
+                format: InlineFormatType::Bold
             }])
             .build()
     )
@@ -75,57 +77,74 @@ fn inline_format() {
     json_serde_eq!(
         InlineFormat,
         r#"{"type": "bold", "start": 5, "end": 9}"#,
-        InlineFormat::Bold {
-            range: InlineFormatRange { start: 5, end: 9 },
+        InlineFormat {
+            start: 5,
+            end: 9,
+            format: InlineFormatType::Bold
         }
     );
     json_serde_eq!(
         InlineFormat,
         r#"{"type": "italic", "start": 14, "end": 20}"#,
-        InlineFormat::Italic {
-            range: InlineFormatRange { start: 14, end: 20 },
+        InlineFormat {
+            start: 14,
+            end: 20,
+            format: InlineFormatType::Italic
         }
     );
     json_serde_eq!(
         InlineFormat,
         r#"{"type": "strikethrough", "start": 0, "end": 1}"#,
-        InlineFormat::Strikethrough {
-            range: InlineFormatRange { start: 0, end: 1 },
+        InlineFormat {
+            start: 0,
+            end: 1,
+            format: InlineFormatType::Strikethrough
         }
     );
     json_serde_eq!(
         InlineFormat,
         r#"{"type": "small", "start": 5, "end": 10}"#,
-        InlineFormat::Small {
-            range: InlineFormatRange { start: 5, end: 10 },
+        InlineFormat {
+            start: 5,
+            end: 10,
+            format: InlineFormatType::Small
         }
     );
     json_serde_eq!(
         InlineFormat,
         r#"{"type": "link", "start": 6, "end": 10, "url": "https://www.nasa.gov"}"#,
-        InlineFormat::Link {
-            range: InlineFormatRange { start: 6, end: 10 },
-            url: "https://www.nasa.gov".to_string(),
+        InlineFormat {
+            start: 6,
+            end: 10,
+            format: InlineFormatType::Link {
+                url: "https://www.nasa.gov".into()
+            }
         }
     );
     json_serde_eq!(
         InlineFormat,
         r#"{"start":13,"end":19,"type":"mention","blog":{"uuid":"t:123456abcdf","name":"david","url":"https://davidslog.com/"}}"#,
-        InlineFormat::Mention {
-            range: InlineFormatRange { start: 13, end: 19 },
-            blog: MentionBlog {
-                uuid: "t:123456abcdf".to_string(),
-                name: Some("david".to_string()),
-                url: Some("https://davidslog.com/".to_string()),
+        InlineFormat {
+            start: 13,
+            end: 19,
+            format: InlineFormatType::Mention {
+                blog: MentionBlog {
+                    uuid: "t:123456abcdf".to_string(),
+                    name: Some("david".to_string()),
+                    url: Some("https://davidslog.com/".into()),
+                }
             }
         }
     );
     json_serde_eq!(
         InlineFormat,
         r##"{"start":10,"end":15,"type":"color","hex":"#ff492f"}"##,
-        InlineFormat::Color {
-            range: InlineFormatRange { start: 10, end: 15 },
-            hex: "#ff492f".to_string(),
+        InlineFormat {
+            start: 10,
+            end: 15,
+            format: InlineFormatType::Color {
+                hex: "#ff492f".into(),
+            }
         }
     );
 }
