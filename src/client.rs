@@ -11,7 +11,7 @@ use std::{fmt::Debug, time::{Instant, Duration}};
 use veil::Redact;
 
 // use reqwest::header::{AUTHORIZATION, ACCEPT, CONTENT_TYPE};
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, de::DeserializeOwned};
 use typed_builder::TypedBuilder;
 
 #[derive(Debug)]
@@ -166,5 +166,31 @@ impl Client {
             http_client,
             token,
         })
+    }
+
+    // TODO handle errors
+    pub async fn request<RT, U>(&self, method: reqwest::Method, url: U) -> crate::api::ApiResponse<RT>
+    where
+        U: reqwest::IntoUrl,
+        RT: DeserializeOwned,
+    {
+        let mut request_builder = self.http_client.request(method, url);
+        match &self.token {
+            Token::OAuth2(token) => {
+                request_builder = request_builder.bearer_auth(&token.access_token);
+            },
+        }
+        let resp: crate::api::ApiResponse<RT> = request_builder
+            .send()
+            .await
+            .unwrap()  // TODO don't just unwrap
+            .json()
+            .await
+            .unwrap();  // TODO don't just unwrap
+        resp
+    }
+
+    pub async fn user_info(&self) -> crate::api::ApiResponse<crate::api::UserInfoResponse> {
+        self.request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await
     }
 }
