@@ -18,7 +18,7 @@ use typed_builder::TypedBuilder;
 pub struct Client {
     credentials: Credentials,
     http_client: reqwest::Client,
-    token: Option<Token>,
+    token: Token,
 }
 
 #[derive(Debug)]
@@ -92,12 +92,12 @@ enum OAuth2AuthResponse {
 }
 
 #[derive(Debug)]
-enum Token {
+pub enum Token {
     OAuth2(OAuth2Token),
 }
 
 #[derive(Redact)]
-struct OAuth2Token {
+pub struct OAuth2Token {
     #[redact]
     access_token: String,
     /// when the token will expire
@@ -117,27 +117,9 @@ pub enum AuthError {
     },
 }
 
-impl Client {
-    /// ```no_run
-    /// # use tumblr_api::client::{Client, OAuth2Credentials};
-    /// /// create a client with oauth2 credentials
-    /// let client = Client::new(
-    ///     OAuth2Credentials::builder()
-    ///         .consumer_key("<consumer key here>")
-    ///         .consumer_secret("<consumer secret here>")
-    ///         .build()
-    /// );
-    /// ```
-    pub fn new(credentials: Credentials) -> Self {
-        Self {
-            http_client: reqwest::Client::new(),
-            credentials,
-            token: None,
-        }
-    }
-
-    async fn get_token_or_authorize(&mut self) -> Result<&Token, AuthError> {
-        match &self.credentials {
+impl Credentials {
+    async fn authorize(&self, http_client: &reqwest::Client) -> Result<Token, AuthError> {
+        match self {
             Credentials::OAuth2(creds) => {
                 let request_sent_at = Instant::now();
                 // TODO make a proper serde struct for this rather than doing it this way
@@ -147,7 +129,7 @@ impl Client {
                     ("client_id", &creds.consumer_key),
                     ("client_secret", &creds.consumer_secret),
                 ];
-                let resp: OAuth2AuthResponse = self.http_client.post("https://api.tumblr.com/v2/oauth2/token")
+                let resp: OAuth2AuthResponse = http_client.post("https://api.tumblr.com/v2/oauth2/token")
                     .form(&foo)
                     .send()
                     .await?
@@ -156,9 +138,7 @@ impl Client {
                 match resp {
                     OAuth2AuthResponse::Token { access_token, expires_in } => {
                         let expires_at = request_sent_at + expires_in;
-                        let token = Token::OAuth2(OAuth2Token { access_token, expires_at });
-                        self.token = Some(token);
-                        Ok(&token)
+                        Ok(Token::OAuth2(OAuth2Token { access_token, expires_at }))
                     },
                     OAuth2AuthResponse::Error { error, error_description, error_uri } => {
                         Err(AuthError::OAuthError { error, error_description, error_uri })
@@ -167,10 +147,24 @@ impl Client {
             },
         }
     }
+}
 
-    pub async fn authorize(&mut self) -> Result<(), AuthError> {
-        self.get_token_or_authorize()
-            .await
-            .map(|_| ())
+impl Client {
+    pub fn new(credentials: Credentials, token: Token) -> Self {
+        Self {
+            http_client: reqwest::Client::new(),
+            credentials,
+            token,
+        }
+    }
+
+    pub async fn authorize(credentials: Credentials) -> Result<Self, AuthError> {
+        let http_client = reqwest::Client::new();
+        let token = credentials.authorize(&http_client).await?;
+        Ok(Self {
+            credentials,
+            http_client,
+            token,
+        })
     }
 }
