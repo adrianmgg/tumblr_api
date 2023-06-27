@@ -203,10 +203,9 @@ impl Client {
         Ok(self.token.as_ref().unwrap())
     }
 
-    pub async fn authorized_request<RT, U>(&mut self, method: reqwest::Method, url: U) -> Result<ApiSuccessResponse<RT>, ClientRequestError>
+    async fn setup_authorized_request<U>(&mut self, method: reqwest::Method, url: U) -> Result<reqwest::RequestBuilder, AuthError>
     where
         U: reqwest::IntoUrl,
-        RT: DeserializeOwned,
     {
         let mut request_builder = self.http_client.request(method, url);
         match self.get_token_and_maybe_authorize().await? {
@@ -214,6 +213,13 @@ impl Client {
                 request_builder = request_builder.bearer_auth(&token.access_token);
             },
         }
+        Ok(request_builder)
+    }
+
+    async fn send_api_request<RT>(/*&self,*/ request_builder: reqwest::RequestBuilder) -> Result<ApiSuccessResponse<RT>, ClientRequestError>
+    where
+        RT: DeserializeOwned,
+    {
         // TODO json() wraps the serde error in a reqwest error, so maybe we should either do the decode ourself or map the error back so we can have a top level decode error type
         let resp: ApiResponse<RT> = request_builder
             .send()
@@ -234,6 +240,14 @@ impl Client {
     }
 
     pub async fn user_info(&mut self) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, ClientRequestError> {
-        self.authorized_request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await
+        Client::send_api_request(self.setup_authorized_request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await?).await
+    }
+
+    pub async fn create_post(&mut self, blog_identifier: &str, request: crate::api::CreatePostRequest) -> Result<ApiSuccessResponse<crate::api::CreatePostResponse>, ClientRequestError> {
+        Client::send_api_request(
+            self.setup_authorized_request(reqwest::Method::POST, format!("https://api.tumblr.com/v2/blog/{}/posts", blog_identifier))
+                .await?
+                .json(&request)
+        ).await
     }
 }

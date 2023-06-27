@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use typed_builder::TypedBuilder;
 use crate::npf;
 
