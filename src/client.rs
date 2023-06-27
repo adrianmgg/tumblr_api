@@ -3,7 +3,7 @@ use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use serde_with::serde_as;
 use thiserror::Error;
 
-use std::{fmt::Debug, time::{Instant, Duration}};
+use std::{fmt::Debug, time::{Instant, Duration}, sync::Arc, ops::Deref};
 use veil::Redact;
 
 // use reqwest::header::{AUTHORIZATION, ACCEPT, CONTENT_TYPE};
@@ -16,7 +16,7 @@ use crate::api::{ApiError, ApiResponseMeta};
 pub struct Client {
     credentials: Credentials,
     http_client: reqwest::Client,
-    token: Option<Token>,
+    token: Option<Arc<Token>>,
 }
 
 #[derive(Debug)]
@@ -186,21 +186,26 @@ impl Credentials {
 }
 
 impl Client {
-    pub fn new(credentials: Credentials, token: Option<Token>) -> Self {
+    pub fn new(credentials: Credentials) -> Self {
         Self {
             http_client: reqwest::Client::new(),
             credentials,
-            token,
+            token: None,
         }
     }
 
-    // TODO do this without an unwrap
-    async fn get_token_and_maybe_authorize<'a>(&'a mut self) -> Result<&'a Token, AuthError> {
-        if let None = self.token {
-            self.token = Some(self.credentials.authorize(&self.http_client).await?);
+    async fn get_token_and_maybe_authorize(&mut self) -> Result<Arc<Token>, AuthError> {
+        match &self.token {
+            Some(token) => Ok(token.clone()),
+            None => {
+                let token: Arc<Token> = self.credentials
+                    .authorize(&self.http_client)
+                    .await?
+                    .into();
+                self.token = Some(token.clone());
+                Ok(token)
+            },
         }
-
-        Ok(self.token.as_ref().unwrap())
     }
 
     async fn setup_authorized_request<U>(&mut self, method: reqwest::Method, url: U) -> Result<reqwest::RequestBuilder, AuthError>
@@ -208,7 +213,7 @@ impl Client {
         U: reqwest::IntoUrl,
     {
         let mut request_builder = self.http_client.request(method, url);
-        match self.get_token_and_maybe_authorize().await? {
+        match self.get_token_and_maybe_authorize().await?.deref() {
             Token::OAuth2(token) => {
                 request_builder = request_builder.bearer_auth(&token.access_token);
             },
