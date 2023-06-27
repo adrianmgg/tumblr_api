@@ -1,10 +1,6 @@
 use serde_with::DurationSeconds;
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use serde_with::serde_as;
-// use oauth2::{
-//     basic::{BasicClient, BasicTokenType},
-//     AuthUrl, ClientId, ClientSecret, Scope, TokenResponse, TokenUrl,
-// };
 use thiserror::Error;
 
 use std::{fmt::Debug, time::{Instant, Duration}};
@@ -14,11 +10,13 @@ use veil::Redact;
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
 use typed_builder::TypedBuilder;
 
+use crate::api::{ApiError, ApiResponseMeta};
+
 #[derive(Debug)]
 pub struct Client {
     credentials: Credentials,
     http_client: reqwest::Client,
-    token: Token,
+    token: Option<Token>,
 }
 
 #[derive(Debug)]
@@ -107,14 +105,52 @@ pub struct OAuth2Token {
 #[derive(Error, Debug)]
 pub enum AuthError {
     #[error(transparent)]
-    NetworkError(#[from] reqwest::Error),
+    Network(#[from] reqwest::Error),
     // TODO give this a better message format instead of just :?ing the `Option<String>`s
     #[error("oauth error! {error} - {error_description:?} - {error_uri:?}")]
-    OAuthError {
+    OAuth {
         error: OAuth2AuthErrorCode,
         error_description: Option<String>,
         error_uri: Option<String>,
     },
+}
+
+#[derive(Error, Debug)]
+pub enum ClientRequestError {
+    #[error(transparent)]
+    Auth(#[from] AuthError),
+    #[error(transparent)]
+    Network(#[from] reqwest::Error),
+    #[error("api error! status: {status} message: {message} errors: {errors:#?}")] // TODO better message format
+    Api {
+        status: i32,
+        message: String,
+        errors: Vec<ApiError>,
+        // TODO we're capturing other_fields on the response meta, should that be included here? 
+    },
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiResponse<RT> {
+    meta: ApiResponseMeta,
+    #[serde(flatten)]
+    thing: ApiResponseThing<RT>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum ApiResponseThing<RT> {
+    Failure {
+        errors: Vec<ApiError>,
+    },
+    Success {
+        response: RT,
+    }
+}
+
+pub struct ApiSuccessResponse<RT> {
+    pub meta: ApiResponseMeta,
+    pub response: RT,
 }
 
 impl Credentials {
@@ -141,7 +177,7 @@ impl Credentials {
                         Ok(Token::OAuth2(OAuth2Token { access_token, expires_at }))
                     },
                     OAuth2AuthResponse::Error { error, error_description, error_uri } => {
-                        Err(AuthError::OAuthError { error, error_description, error_uri })
+                        Err(AuthError::OAuth { error, error_description, error_uri })
                     },
                 }
             },
@@ -150,7 +186,7 @@ impl Credentials {
 }
 
 impl Client {
-    pub fn new(credentials: Credentials, token: Token) -> Self {
+    pub fn new(credentials: Credentials, token: Option<Token>) -> Self {
         Self {
             http_client: reqwest::Client::new(),
             credentials,
@@ -158,39 +194,46 @@ impl Client {
         }
     }
 
-    pub async fn authorize(credentials: Credentials) -> Result<Self, AuthError> {
-        let http_client = reqwest::Client::new();
-        let token = credentials.authorize(&http_client).await?;
-        Ok(Self {
-            credentials,
-            http_client,
-            token,
-        })
+    // TODO do this without an unwrap
+    async fn get_token_and_maybe_authorize<'a>(&'a mut self) -> Result<&'a Token, AuthError> {
+        if let None = self.token {
+            self.token = Some(self.credentials.authorize(&self.http_client).await?);
+        }
+
+        Ok(self.token.as_ref().unwrap())
     }
 
-    // TODO handle errors
-    pub async fn request<RT, U>(&self, method: reqwest::Method, url: U) -> crate::api::ApiResponse<RT>
+    pub async fn authorized_request<RT, U>(&mut self, method: reqwest::Method, url: U) -> Result<ApiSuccessResponse<RT>, ClientRequestError>
     where
         U: reqwest::IntoUrl,
         RT: DeserializeOwned,
     {
         let mut request_builder = self.http_client.request(method, url);
-        match &self.token {
+        match self.get_token_and_maybe_authorize().await? {
             Token::OAuth2(token) => {
                 request_builder = request_builder.bearer_auth(&token.access_token);
             },
         }
-        let resp: crate::api::ApiResponse<RT> = request_builder
+        // TODO json() wraps the serde error in a reqwest error, so maybe we should either do the decode ourself or map the error back so we can have a top level decode error type
+        let resp: ApiResponse<RT> = request_builder
             .send()
-            .await
-            .unwrap()  // TODO don't just unwrap
+            .await?
             .json()
-            .await
-            .unwrap();  // TODO don't just unwrap
-        resp
+            .await?;
+        match resp.thing {
+            ApiResponseThing::Failure { errors } => Err(ClientRequestError::Api {
+                errors,
+                status: resp.meta.status,
+                message: resp.meta.msg,
+            }),
+            ApiResponseThing::Success { response } => Ok(ApiSuccessResponse {
+                response,
+                meta: resp.meta,
+            }),
+        }
     }
 
-    pub async fn user_info(&self) -> crate::api::ApiResponse<crate::api::UserInfoResponse> {
-        self.request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await
+    pub async fn user_info(&mut self) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, ClientRequestError> {
+        self.authorized_request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await
     }
 }

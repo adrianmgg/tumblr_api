@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use typed_builder::TypedBuilder;
 use crate::npf;
 
@@ -269,10 +270,12 @@ pub struct InteractabilityInfo {
     pub can_reply: bool,
 }
 
+// https://www.tumblr.com/docs/en/api/v2#userinfo--get-a-users-information#errors-and-error-subcodes
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ApiResponse<RT> {
-    pub meta: ApiResponseMeta,
-    pub response: RT,
+pub struct ApiError {
+    // TODO should title/code be `Option`al?
+    title: String,
+    code: i32,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
