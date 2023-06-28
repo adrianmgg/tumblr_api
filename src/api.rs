@@ -183,10 +183,10 @@ mod post_submission_info_serde {
             }) => Shim {
                 is_submission: true,
                 // TODO make a serialize-specific version of the struct with `&str`s to avoid these?
-                post_author: post_author.to_owned(),
-                post_author_is_adult: post_author_is_adult.to_owned(),
-                anonymous_name: anonymous_name.to_owned(),
-                anonymous_email: anonymous_email.to_owned(),
+                post_author: post_author.clone(),
+                post_author_is_adult: post_author_is_adult.clone(),
+                anonymous_name: anonymous_name.clone(),
+                anonymous_email: anonymous_email.clone(),
             }
             .serialize(serializer),
         }

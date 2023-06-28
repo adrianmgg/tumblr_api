@@ -3,7 +3,7 @@ use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use serde_with::serde_as;
 use thiserror::Error;
 
-use std::{fmt::Debug, time::{Instant, Duration}, sync::Arc, ops::Deref};
+use std::{fmt::Debug, time::{Instant, Duration}, sync::Arc};
 use veil::Redact;
 
 // use reqwest::header::{AUTHORIZATION, ACCEPT, CONTENT_TYPE};
@@ -52,7 +52,7 @@ pub enum Scope {
     Write,
 }
 
-/// possible values of `error` in OAuth2 error response, see <https://www.rfc-editor.org/rfc/rfc6749#section-5.2>
+/// possible values of `error` in OAuth 2 error response, see <https://www.rfc-editor.org/rfc/rfc6749#section-5.2>
 #[derive(Eq, PartialEq, Deserialize_enum_str, Serialize_enum_str, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum OAuth2AuthErrorCode {
@@ -116,7 +116,7 @@ pub enum AuthError {
 }
 
 #[derive(Error, Debug)]
-pub enum ClientRequestError {
+pub enum RequestError {
     #[error(transparent)]
     Auth(#[from] AuthError),
     #[error(transparent)]
@@ -156,17 +156,17 @@ pub struct ApiSuccessResponse<RT> {
 impl Credentials {
     async fn authorize(&self, http_client: &reqwest::Client) -> Result<Token, AuthError> {
         match self {
-            Credentials::OAuth2(creds) => {
+            Self::OAuth2(creds) => {
                 let request_sent_at = Instant::now();
                 // TODO make a proper serde struct for this rather than doing it this way
-                let foo = [
+                let form_data = [
                     ("grant_type", "client_credentials"),
                     ("scope", "basic offline_access write"),
                     ("client_id", &creds.consumer_key),
                     ("client_secret", &creds.consumer_secret),
                 ];
                 let resp: OAuth2AuthResponse = http_client.post("https://api.tumblr.com/v2/oauth2/token")
-                    .form(&foo)
+                    .form(&form_data)
                     .send()
                     .await?
                     .json()
@@ -186,7 +186,7 @@ impl Credentials {
 }
 
 impl Client {
-    pub fn new(credentials: Credentials) -> Self {
+    #[must_use] pub fn new(credentials: Credentials) -> Self {
         Self {
             http_client: reqwest::Client::new(),
             credentials,
@@ -213,7 +213,7 @@ impl Client {
         U: reqwest::IntoUrl,
     {
         let mut request_builder = self.http_client.request(method, url);
-        match self.get_token_and_maybe_authorize().await?.deref() {
+        match &*self.get_token_and_maybe_authorize().await? {
             Token::OAuth2(token) => {
                 request_builder = request_builder.bearer_auth(&token.access_token);
             },
@@ -221,7 +221,7 @@ impl Client {
         Ok(request_builder)
     }
 
-    async fn send_api_request<RT>(/*&self,*/ request_builder: reqwest::RequestBuilder) -> Result<ApiSuccessResponse<RT>, ClientRequestError>
+    async fn send_api_request<RT>(/*&self,*/ request_builder: reqwest::RequestBuilder) -> Result<ApiSuccessResponse<RT>, RequestError>
     where
         RT: DeserializeOwned,
     {
@@ -232,7 +232,7 @@ impl Client {
             .json()
             .await?;
         match resp.thing {
-            ApiResponseThing::Failure { errors } => Err(ClientRequestError::Api {
+            ApiResponseThing::Failure { errors } => Err(RequestError::Api {
                 errors,
                 status: resp.meta.status,
                 message: resp.meta.msg,
@@ -244,13 +244,13 @@ impl Client {
         }
     }
 
-    pub async fn user_info(&mut self) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, ClientRequestError> {
-        Client::send_api_request(self.setup_authorized_request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await?).await
+    pub async fn user_info(&mut self) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, RequestError> {
+        Self::send_api_request(self.setup_authorized_request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await?).await
     }
 
-    pub async fn create_post(&mut self, blog_identifier: &str, request: crate::api::CreatePostRequest) -> Result<ApiSuccessResponse<crate::api::CreatePostResponse>, ClientRequestError> {
-        Client::send_api_request(
-            self.setup_authorized_request(reqwest::Method::POST, format!("https://api.tumblr.com/v2/blog/{}/posts", blog_identifier))
+    pub async fn create_post(&mut self, blog_identifier: &str, request: crate::api::CreatePostRequest) -> Result<ApiSuccessResponse<crate::api::CreatePostResponse>, RequestError> {
+        Self::send_api_request(
+            self.setup_authorized_request(reqwest::Method::POST, format!("https://api.tumblr.com/v2/blog/{blog_identifier}/posts"))
                 .await?
                 .json(&request)
         ).await

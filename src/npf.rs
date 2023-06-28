@@ -42,8 +42,7 @@ where
         ListOfOne([T; 1]),
     }
     match SingleOrListOfOne::<T>::deserialize(deserializer)? {
-        SingleOrListOfOne::Single(a) => Ok(a),
-        SingleOrListOfOne::ListOfOne([a]) => Ok(a),
+        SingleOrListOfOne::Single(a) | SingleOrListOfOne::ListOfOne([a]) => Ok(a),
     }
 }
 
@@ -62,37 +61,37 @@ pub enum ContentBlock {
 
 impl From<ContentBlockText> for ContentBlock {
     fn from(val: ContentBlockText) -> Self {
-        ContentBlock::Text(val)
+        Self::Text(val)
     }
 }
 impl From<ContentBlockImage> for ContentBlock {
     fn from(val: ContentBlockImage) -> Self {
-        ContentBlock::Image(val)
+        Self::Image(val)
     }
 }
 impl From<ContentBlockLink> for ContentBlock {
     fn from(val: ContentBlockLink) -> Self {
-        ContentBlock::Link(val)
+        Self::Link(val)
     }
 }
 impl From<ContentBlockAudio> for ContentBlock {
     fn from(val: ContentBlockAudio) -> Self {
-        ContentBlock::Audio(val)
+        Self::Audio(val)
     }
 }
 impl From<ContentBlockVideo> for ContentBlock {
     fn from(val: ContentBlockVideo) -> Self {
-        ContentBlock::Video(val)
+        Self::Video(val)
     }
 }
 impl From<ContentBlockPaywall> for ContentBlock {
     fn from(val: ContentBlockPaywall) -> Self {
-        ContentBlock::Paywall(val)
+        Self::Paywall(val)
     }
 }
 impl From<ContentBlockPoll> for ContentBlock {
     fn from(val: ContentBlockPoll) -> Self {
-        ContentBlock::Poll(val)
+        Self::Poll(val)
     }
 }
 
