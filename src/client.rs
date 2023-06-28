@@ -244,8 +244,12 @@ impl Client {
         }
     }
 
-    pub async fn user_info(&mut self) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, RequestError> {
-        Self::send_api_request(self.setup_authorized_request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await?).await
+    // pub async fn user_info(&mut self) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, RequestError> {
+    //     Self::send_api_request(self.setup_authorized_request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await?).await
+    // }
+
+    pub fn user_info(&self) -> UserInfoRequestBuilder {
+        UserInfoRequestBuilder::new()
     }
 
     // pub async fn create_post(&mut self, blog_identifier: &str, request: crate::api::CreatePostRequest) -> Result<ApiSuccessResponse<crate::api::CreatePostResponse>, RequestError> {
@@ -256,26 +260,13 @@ impl Client {
     //     ).await
     // }
 
-    pub fn create_post<B, C>(&self, blog_identifier: B, content: C) -> CreatePostBuilder
+    pub fn create_post<B, C>(&self, blog_identifier: B, content: C) -> CreatePostRequestBuilder
     where
         B: Into<Box<str>>,
         C: Into<Box<[crate::npf::ContentBlock]>>,
     {
-        CreatePostBuilder::new(blog_identifier.into(), content.into())
+        CreatePostRequestBuilder::new(blog_identifier.into(), content.into())
     }
-}
-
-// TODO move over the doc stuff from 
-pub enum CreatePostState {
-    Published,
-    // TODO should we do these two as `Queue, Schedule { publish_on: ... }` or as `Queue { publish_on: Option<...> }`?
-    Queue,
-    Schedule {
-        publish_on: time::OffsetDateTime,
-    },
-    Draft,
-    Private,
-    Unapproved,
 }
 
 macro_rules! builder_setter {
@@ -300,8 +291,30 @@ macro_rules! builder_setter {
     };
 }
 
+pub struct UserInfoRequestBuilder {
+}
+
+impl UserInfoRequestBuilder {
+    const fn new() -> Self {
+        Self { }
+    }
+}
+
+// TODO move over the doc stuff from 
+pub enum CreatePostState {
+    Published,
+    // TODO should we do these two as `Queue, Schedule { publish_on: ... }` or as `Queue { publish_on: Option<...> }`?
+    Queue,
+    Schedule {
+        publish_on: time::OffsetDateTime,
+    },
+    Draft,
+    Private,
+    Unapproved,
+}
+
 // TODO figure out we want to expose the `date` field (and also like. what it even does lmao)
-pub struct CreatePostBuilder {
+pub struct CreatePostRequestBuilder {
     blog_identifier: Box<str>,
     content: Box<[crate::npf::ContentBlock]>,
     tags: Option<Box<str>>,
@@ -310,7 +323,7 @@ pub struct CreatePostBuilder {
     source_url: Option<Box<str>>,
 }
 
-impl CreatePostBuilder {
+impl CreatePostRequestBuilder {
     fn new(blog_identifier: Box<str>, content: Box<[crate::npf::ContentBlock]>) -> Self {
         Self {
             blog_identifier,
