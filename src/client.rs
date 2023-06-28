@@ -278,6 +278,28 @@ pub enum CreatePostState {
     Unapproved,
 }
 
+macro_rules! builder_setter {
+    ($name:ident, $type:ty) => {
+        #[allow(clippy::missing_const_for_fn)]
+        #[must_use]
+        pub fn $name(mut self, $name: $type) -> Self {
+            self.$name = Some($name);
+            self
+        }
+    };
+    ($name:ident, into $type:ty) => {
+        #[allow(clippy::missing_const_for_fn)]
+        #[must_use]
+        pub fn $name<T>(mut self, $name: T) -> Self
+        where
+            T: Into<$type>,
+        {
+            self.$name = Some($name.into());
+            self
+        }
+    };
+}
+
 // TODO figure out we want to expose the `date` field (and also like. what it even does lmao)
 pub struct CreatePostBuilder {
     blog_identifier: Box<str>,
@@ -299,28 +321,7 @@ impl CreatePostBuilder {
         }
     }
 
-    #[must_use]
-    pub fn tags<S>(mut self, tags: S) -> Self
-    where
-        S: Into<Box<str>>,
-    {
-        self.tags = Some(tags.into());
-        self
-    }
-
-    #[allow(clippy::missing_const_for_fn)]
-    #[must_use]
-    pub fn initial_state(mut self, initial_state: CreatePostState) -> Self {
-        self.initial_state = Some(initial_state);
-        self
-    }
-
-    #[must_use]
-    pub fn source_url<S>(mut self, source_url: S) -> Self
-    where
-        S: Into<Box<str>>,
-    {
-        self.source_url = Some(source_url.into());
-        self
-    }
+    builder_setter!(tags, into Box<str>);
+    builder_setter!(initial_state, CreatePostState);
+    builder_setter!(source_url, into Box<str>);
 }
