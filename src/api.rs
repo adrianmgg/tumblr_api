@@ -408,6 +408,8 @@ pub struct CreatePostResponse {
     // TODO - "intentionally a string instead of an integer for 32bit device compatibility" - should make it an int
     /// "the id of the created post"
     id: String,
+    // TODO - field `state` - observed values: "published", "draft", "private", "queued"
+    // TODO - field `display_text` - observed values: (a string)
     /// unknown/unhandled fields
     #[serde(flatten)]
     pub other_fields: serde_json::Map<String, serde_json::Value>,
