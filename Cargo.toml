@@ -18,3 +18,4 @@ veil = "0.1"
 serde-enum-str = "0.3.2"  # TODO version range
 serde_with = "3.0.0" # TODO version range
 time = { version = "0.3.22", features = ["formatting"] } # TODO version range
+async-mutex = "1.4.0" # TODO version range

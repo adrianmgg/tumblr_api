@@ -3,7 +3,7 @@ use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use serde_with::serde_as;
 use thiserror::Error;
 
-use std::{fmt::Debug, time::{Instant, Duration}, sync::{Arc, Mutex}};
+use std::{fmt::Debug, time::{Instant, Duration}, sync::Arc};
 use veil::Redact;
 
 // use reqwest::header::{AUTHORIZATION, ACCEPT, CONTENT_TYPE};
@@ -14,13 +14,13 @@ use crate::{api::{ApiError, ApiResponseMeta}, npf};
 
 #[derive(Clone)]
 pub struct Client {
-    inner: Arc<Mutex<ClientInner>>,
+    inner: Arc<ClientInner>,
 }
 
 struct ClientInner {
     credentials: Credentials,
     http_client: reqwest::Client,
-    token: Option<Arc<Token>>,
+    token: async_mutex::Mutex<Option<Token>>,
 }
 
 #[derive(Debug)]
@@ -77,7 +77,7 @@ pub enum OAuth2AuthErrorCode {
 enum OAuth2AuthResponse {
     Token {
         #[redact]
-        access_token: String,
+        access_token: Box<str>,
         #[serde_as(as = "DurationSeconds<u64>")]
         expires_in: Duration,
         // token_type: String,
@@ -93,15 +93,15 @@ enum OAuth2AuthResponse {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Token {
     OAuth2(OAuth2Token),
 }
 
-#[derive(Redact)]
+#[derive(Redact, Clone)]
 pub struct OAuth2Token {
     #[redact]
-    access_token: String,
+    access_token: Box<str>,
     /// when the token will expire
     expires_at: Instant,
 }
@@ -191,28 +191,28 @@ impl Credentials {
 }
 
 impl ClientInner {
-    async fn get_token_and_maybe_authorize(&mut self) -> Result<Arc<Token>, AuthError> {
-        match &self.token {
+    async fn get_token_and_maybe_authorize(&self) -> Result<Token, AuthError> {
+        let mut guard = self.token.lock().await;
+        match &*guard {
             Some(token) => Ok(token.clone()),
             None => {
-                let token: Arc<Token> = self.credentials
+                let token: Token = self.credentials
                     .authorize(&self.http_client)
-                    .await?
-                    .into();
-                self.token = Some(token.clone());
+                    .await?;
+                *guard = Some(token.clone());
                 Ok(token)
             },
         }
     }
 
-    async fn do_request<RT, U, B>(&mut self, method: reqwest::Method, url: U, json: Option<B>) -> Result<ApiSuccessResponse<RT>, RequestError>
+    async fn do_request<RT, U, B>(&self, method: reqwest::Method, url: U, json: Option<B>) -> Result<ApiSuccessResponse<RT>, RequestError>
     where
         RT: DeserializeOwned,
         U: reqwest::IntoUrl,
         B: Serialize + Sized,
     {
         let mut request_builder = self.http_client.request(method, url);
-        match self.get_token_and_maybe_authorize().await?.as_ref() {
+        match self.get_token_and_maybe_authorize().await? {
             Token::OAuth2(token) => {
                 request_builder = request_builder.bearer_auth(&token.access_token);
             },
@@ -253,11 +253,11 @@ impl Client {
     #[must_use]
     pub fn new(credentials: Credentials) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(ClientInner {
+            inner: Arc::new(ClientInner {
                 http_client: reqwest::Client::new(),
                 credentials,
-                token: None,
-            })),
+                token: async_mutex::Mutex::new(None),
+            }),
         }
     }
 
@@ -357,8 +357,6 @@ impl UserInfoRequestBuilder {
     pub async fn send(self) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, RequestError>  {
         self.client
             .inner
-            .lock()
-            .unwrap()
             .do_request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info", Option::<String>::None)
             .await
     }
@@ -418,8 +416,6 @@ impl CreatePostRequestBuilder {
     pub async fn send(self) -> Result<ApiSuccessResponse<crate::api::CreatePostResponse>, RequestError>  {
         self.client
             .inner
-            .lock()
-            .unwrap()
             .do_request(reqwest::Method::POST, format!("https://api.tumblr.com/v2/blog/{}/posts", self.blog_identifier), Some(crate::api::CreatePostRequest {
                 content: self.content,
                 state: match self.initial_state {
