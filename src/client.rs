@@ -317,7 +317,7 @@ impl Client {
     pub fn create_post<B, C>(&self, blog_identifier: B, content: C) -> CreatePostRequestBuilder
     where
         B: Into<Box<str>>,
-        C: Into<Box<[crate::npf::ContentBlock]>>,
+        C: Into<Vec<crate::npf::ContentBlock>>,
     {
         CreatePostRequestBuilder::new(self.clone(), blog_identifier.into(), content.into())
     }
@@ -392,7 +392,7 @@ pub enum CreatePostState {
 pub struct CreatePostRequestBuilder {
     client: Client,
     blog_identifier: Box<str>,
-    content: Box<[crate::npf::ContentBlock]>,
+    content: Vec<crate::npf::ContentBlock>,
     tags: Option<Box<str>>,
     // TODO should we skip the Option<> and just have this be set to Published by default?
     initial_state: Option<CreatePostState>,
@@ -400,7 +400,7 @@ pub struct CreatePostRequestBuilder {
 }
 
 impl CreatePostRequestBuilder {
-    fn new(client: Client, blog_identifier: Box<str>, content: Box<[crate::npf::ContentBlock]>) -> Self {
+    fn new(client: Client, blog_identifier: Box<str>, content: Vec<crate::npf::ContentBlock>) -> Self {
         Self {
             client,
             blog_identifier,
@@ -421,7 +421,7 @@ impl CreatePostRequestBuilder {
             .lock()
             .unwrap()
             .do_request(reqwest::Method::POST, format!("https://api.tumblr.com/v2/blog/{}/posts", self.blog_identifier), Some(crate::api::CreatePostRequest {
-                content: vec![npf::ContentBlockText::builder().text("hello world!").build()], // self.content.into_vec(),  // TODO
+                content: self.content,
                 state: match self.initial_state {
                     None => None,
                     Some(CreatePostState::Draft) => Some(crate::api::CreatePostState::Draft),
