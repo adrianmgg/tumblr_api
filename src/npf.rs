@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use typed_builder::TypedBuilder;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -14,7 +14,9 @@ pub struct MentionBlog {
 }
 
 // TODO give this a better name
-fn attribution_deserialize_special_case_stuff<'de, D>(deserializer: D) -> Result<Option<Attribution>, D::Error>
+fn attribution_deserialize_special_case_stuff<'de, D>(
+    deserializer: D,
+) -> Result<Option<Attribution>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -119,7 +121,7 @@ pub struct ContentBlockImage {
     /// "An array of [MediaObject]s which represent different available sizes of this image asset."
     pub media: Vec<MediaObject>,
     /// "Colors used in the image."
-    /// 
+    ///
     /// (undocumented) note: colors may instead be listed under [`MediaObject::colors`] in individual entries of [`ContentBlockImage::media`]
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -132,7 +134,11 @@ pub struct ContentBlockImage {
     // TODO doc ("See the Attributions section for details about these objects.")
     // TODO some posts sent with `"attribution": []` ???
     #[builder(default, setter(into, strip_option))]
-    #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "attribution_deserialize_special_case_stuff"
+    )]
     pub attribution: Option<Attribution>,
     /// "Text used to describe the image, for screen readers. 4096 character maximum."
     // TODO enforce that max length on serialize
@@ -226,7 +232,11 @@ pub struct ContentBlockAudio {
     pub album: Option<String>,
     /// "An image media object to use as a "poster" for the audio track, usually album art."
     #[builder(default, setter(strip_option))]
-    #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "single_or_list_of_one")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "single_or_list_of_one"
+    )]
     pub poster: Option<MediaObject>,
     /// "HTML code that could be used to embed this audio track into a webpage."
     #[builder(default, setter(into, strip_option))]
@@ -243,7 +253,11 @@ pub struct ContentBlockAudio {
     pub metadata: Option<serde_json::Value>,
     /// "Optional attribution information about where the audio track came from."
     #[builder(default, setter(strip_option))]
-    #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "attribution_deserialize_special_case_stuff"
+    )]
     pub attribution: Option<Attribution>,
 }
 
@@ -286,7 +300,11 @@ pub struct ContentBlockVideo {
     pub metadata: Option<serde_json::Value>,
     /// "Optional attribution information about where the video came from."
     #[builder(default, setter(strip_option))]
-    #[serde(skip_serializing_if = "Option::is_none", default, deserialize_with = "attribution_deserialize_special_case_stuff")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "attribution_deserialize_special_case_stuff"
+    )]
     pub attribution: Option<Attribution>,
     /// "Whether this video can be played on a cellular connection."
     #[builder(default, setter(strip_option))]
@@ -354,13 +372,9 @@ pub enum InlineFormatType {
     /// <https://www.tumblr.com/docs/npf#inline-format-types-bold-italic-strikethrough-small>
     Small,
     /// <https://www.tumblr.com/docs/npf#inline-format-type-link>
-    Link {
-        url: String,
-    },
+    Link { url: String },
     /// <https://www.tumblr.com/docs/npf#inline-format-type-mention>
-    Mention {
-        blog: MentionBlog,
-    },
+    Mention { blog: MentionBlog },
     /// <https://www.tumblr.com/docs/npf#inline-format-type-color>
     Color {
         /// "The color to use, in standard hex format, with leading #."
@@ -440,9 +454,7 @@ pub enum Attribution {
         url_redirect: Option<String>,
     },
     /// <https://www.tumblr.com/docs/npf#attribution-type-blog>
-    Blog {
-        blog: MentionBlog,
-    },
+    Blog { blog: MentionBlog },
     /// <https://www.tumblr.com/docs/npf#attribution-type-app>
     App {
         /// "The canonical URL to the source content in the third-party app."

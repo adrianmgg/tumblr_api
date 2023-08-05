@@ -1,6 +1,6 @@
+use crate::npf;
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
-use crate::npf;
 
 // https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -17,7 +17,7 @@ pub struct NPFPost {
     /// "The location of the post"
     pub post_url: String,
     /// "The type of post"
-    /// 
+    ///
     /// **currently not actually checked -- since we're only supporting NPF so far anyways this should only ever be "blocks"**
     #[serde(rename = "type")]
     pub post_type: String,
@@ -184,7 +184,7 @@ mod post_submission_info_serde {
                 is_submission: true,
                 // TODO make a serialize-specific version of the struct with `&str`s to avoid these?
                 post_author: post_author.clone(),
-                post_author_is_adult: post_author_is_adult.clone(),
+                post_author_is_adult: *post_author_is_adult,
                 anonymous_name: anonymous_name.clone(),
                 anonymous_email: anonymous_email.clone(),
             }
@@ -414,6 +414,3 @@ pub struct CreatePostResponse {
     #[serde(flatten)]
     pub other_fields: serde_json::Map<String, serde_json::Value>,
 }
-
-
-
