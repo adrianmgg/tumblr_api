@@ -24,7 +24,7 @@ pub struct Client {
 struct ClientInner {
     credentials: Credentials,
     http_client: reqwest::Client,
-    token: async_mutex::Mutex<Option<Token>>,
+    token: async_lock::Mutex<Option<Token>>,
 }
 
 #[derive(Debug)]
@@ -266,7 +266,7 @@ impl Client {
             inner: Arc::new(ClientInner {
                 http_client: reqwest::Client::new(),
                 credentials,
-                token: async_mutex::Mutex::new(None),
+                token: async_lock::Mutex::new(None),
             }),
         }
     }
