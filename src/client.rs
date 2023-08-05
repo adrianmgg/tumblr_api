@@ -337,6 +337,7 @@ impl UserInfoRequestBuilder {
 }
 
 // TODO move over the doc stuff from
+#[derive(Debug, PartialEq, Eq)]
 pub enum CreatePostState {
     Published,
     // TODO should we do these two as `Queue, Schedule { publish_on: ... }` or as `Queue { publish_on: Option<...> }`?
@@ -403,6 +404,32 @@ impl CreatePostRequestBuilder {
     pub async fn send(
         self,
     ) -> Result<ApiSuccessResponse<crate::api::CreatePostResponse>, RequestError> {
+        // the api takes state & publish_on as two different properties,
+        //  where publish_on is only valid when the state is queue & that represents a scheduled post.
+        //  we instead expose it as a single enum where queue & schedule are different variants,
+        //  so we need to map that back to the two separate fields that the api wants.
+        let (state, publish_on) = match self.initial_state {
+            None => (None, None),
+            Some(CreatePostState::Draft) => (Some(crate::api::CreatePostState::Draft), None),
+            Some(CreatePostState::Private) => (Some(crate::api::CreatePostState::Private), None),
+            Some(CreatePostState::Published) => {
+                (Some(crate::api::CreatePostState::Published), None)
+            }
+            Some(CreatePostState::Unapproved) => {
+                (Some(crate::api::CreatePostState::Unapproved), None)
+            }
+            Some(CreatePostState::Queue) => (Some(crate::api::CreatePostState::Queue), None),
+            Some(CreatePostState::Schedule { publish_on }) => (
+                Some(crate::api::CreatePostState::Queue),
+                Some(
+                    // TODO handle properly instead of unwrapping
+                    // TODO also the format isn't right i think b/c these were 400.8001ing last time i checked
+                    publish_on
+                        .format(&time::format_description::well_known::Iso8601::DEFAULT)
+                        .unwrap(),
+                ),
+            ),
+        };
         self.client
             .inner
             .do_request(
@@ -413,30 +440,8 @@ impl CreatePostRequestBuilder {
                 ),
                 Some(crate::api::CreatePostRequest {
                     content: self.content,
-                    state: match self.initial_state {
-                        None => None,
-                        Some(CreatePostState::Draft) => Some(crate::api::CreatePostState::Draft),
-                        Some(CreatePostState::Private) => {
-                            Some(crate::api::CreatePostState::Private)
-                        }
-                        Some(CreatePostState::Published) => {
-                            Some(crate::api::CreatePostState::Published)
-                        }
-                        Some(CreatePostState::Unapproved) => {
-                            Some(crate::api::CreatePostState::Unapproved)
-                        }
-                        Some(
-                            CreatePostState::Queue | CreatePostState::Schedule { publish_on: _ },
-                        ) => Some(crate::api::CreatePostState::Queue),
-                    },
-                    publish_on: match self.initial_state {
-                        Some(CreatePostState::Schedule { publish_on }) => Some(
-                            publish_on
-                                .format(&time::format_description::well_known::Iso8601::DEFAULT)
-                                .unwrap(),
-                        ), // TOOD handle properly instead of unwrapping // TODO also the format isn't right i think b/c these are 400.8001ing
-                        _ => None,
-                    },
+                    state,
+                    publish_on,
                     date: None,
                     tags: self.tags.map(std::convert::Into::into), // TODO
                     source_url: self.source_url.map(std::convert::Into::into), // TODO
