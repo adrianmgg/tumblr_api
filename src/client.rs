@@ -3,6 +3,7 @@ use serde_with::serde_as;
 use serde_with::DurationSeconds;
 use thiserror::Error;
 
+use std::borrow::Cow;
 use std::{
     fmt::Debug,
     sync::Arc,
@@ -219,6 +220,7 @@ impl ClientInner {
         method: reqwest::Method,
         url: U,
         json: Option<B>,
+        parts: Option<Vec<(Cow<'static, str>, reqwest::multipart::Part)>>,
     ) -> Result<ApiSuccessResponse<RT>, RequestError>
     where
         RT: DeserializeOwned,
@@ -231,7 +233,20 @@ impl ClientInner {
                 request_builder = request_builder.bearer_auth(&token.access_token);
             }
         }
-        if let Some(json) = json {
+        if let Some(parts) = parts {
+            let mut form = reqwest::multipart::Form::new();
+            if let Some(json) = json {
+                let body_part = reqwest::multipart::Part::text(serde_json::to_string(&json).unwrap()) // TODO handle instead of unwrapping
+                    .mime_str("application/json")
+                    .unwrap(); // TODO handle instead of unwrapping
+                form = form.part("json", body_part);
+                for (part_id, part) in parts {
+                    form = form.part(part_id, part);
+                }
+            }
+            request_builder = request_builder.multipart(form);
+        }
+        else if let Some(json) = json {
             request_builder = request_builder.json(&json);
         }
 
@@ -265,6 +280,7 @@ impl Client {
         Self {
             inner: Arc::new(ClientInner {
                 http_client: reqwest::Client::new(),
+                // http_client: reqwest::ClientBuilder::new().connection_verbose(true).build().unwrap(),
                 credentials,
                 token: async_lock::Mutex::new(None),
             }),
@@ -373,6 +389,7 @@ impl UserInfoRequestBuilder {
                 reqwest::Method::GET,
                 "https://api.tumblr.com/v2/user/info",
                 Option::<String>::None,
+                None,
             )
             .await
     }
@@ -409,6 +426,13 @@ pub struct CreatePostRequestBuilder {
     // TODO should we skip the Option<> and just have this be set to Published by default?
     initial_state: Option<CreatePostState>,
     source_url: Option<Box<str>>,
+    attachments: Vec<CreatePostAttachment>,
+}
+
+struct CreatePostAttachment {
+    stream: reqwest::Body,
+    mime_type: Box<str>,
+    identifier: Cow<'static, str>,
 }
 
 impl CreatePostRequestBuilder {
@@ -424,12 +448,27 @@ impl CreatePostRequestBuilder {
             tags: None,
             initial_state: None,
             source_url: None,
+            attachments: Vec::new(),
         }
     }
 
     builder_setter!(tags, into Box<str>);
     builder_setter!(initial_state, CreatePostState);
     builder_setter!(source_url, into Box<str>);
+
+    #[must_use]
+    pub fn add_attachment<S1, S2>(mut self, stream: reqwest::Body, mime_type: S1, identifier: S2) -> Self
+    where
+        S1: Into<Box<str>>,
+        S2: Into<Cow<'static, str>>,
+    {
+        self.attachments.push(CreatePostAttachment {
+            stream,
+            mime_type: mime_type.into(),
+            identifier: identifier.into(),
+        });
+        self
+    }
 
     pub async fn send(
         self,
@@ -476,6 +515,18 @@ impl CreatePostRequestBuilder {
                     slug: None,
                     interactability_reblog: None,
                 }),
+                Some(
+                    self.attachments
+                        .into_iter()
+                        .map(|attachment| {
+                            let part = reqwest::multipart::Part::stream(attachment.stream)
+                                // tumblr requires a filename but doesn't actually check it so we just put something there
+                                .file_name("a")
+                                .mime_str(&attachment.mime_type).unwrap(); // TODO handle instead of just unwrapping
+                            (attachment.identifier, part)
+                        })
+                        .collect(),
+                ),
             )
             .await
     }

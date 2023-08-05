@@ -389,8 +389,9 @@ pub enum InlineFormatType {
 #[serde(deny_unknown_fields)]
 pub struct MediaObject {
     /// "The canonical URL of the media asset"
-    #[builder(setter(into))]
-    pub url: String,
+    #[builder(setter())]
+    #[serde(flatten)]
+    pub content: MediaObjectContent,
     /// "The MIME type of the media asset, or a best approximation will be made based on the given URL"
     #[builder(default, setter(into, strip_option))]
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
@@ -432,6 +433,14 @@ pub struct MediaObject {
     #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub video: Option<Vec<MediaObject>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+// if we end up needing one of these variants to have multiple implementations this'll need to be done differently
+#[serde(rename_all = "lowercase")]
+pub enum MediaObjectContent {
+    Url(String),
+    Identifier(String),
 }
 
 /// <https://www.tumblr.com/docs/npf#attributions>
