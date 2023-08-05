@@ -11,7 +11,6 @@ use std::{
 };
 use veil::Redact;
 
-// use reqwest::header::{AUTHORIZATION, ACCEPT, CONTENT_TYPE};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
@@ -34,7 +33,6 @@ pub enum Credentials {
     OAuth2(OAuth2Credentials),
 }
 
-// TODO redact this
 #[derive(Redact, TypedBuilder)]
 #[builder(build_method(into), field_defaults(setter(into)))]
 pub struct OAuth2Credentials {
@@ -253,13 +251,6 @@ impl ClientInner {
         // TODO json() wraps the serde error in a reqwest error, so maybe we should either do the decode ourself or map the error back so we can have a top level decode error type
         let resp: ApiResponse<RT> = request_builder.send().await?.json().await?;
 
-        // let foobar = request_builder
-        //     .send()
-        //     .await?;
-        // let resp_str: String = foobar.text().await?;
-        // dbg!(&resp_str);
-        // let resp: ApiResponse<RT> = serde_json::from_str(&resp_str).unwrap();
-
         match resp.thing {
             ApiResponseThing::Failure { errors } => Err(RequestError::Api {
                 errors,
@@ -280,65 +271,15 @@ impl Client {
         Self {
             inner: Arc::new(ClientInner {
                 http_client: reqwest::Client::new(),
-                // http_client: reqwest::ClientBuilder::new().connection_verbose(true).build().unwrap(),
                 credentials,
                 token: async_lock::Mutex::new(None),
             }),
         }
     }
 
-    // async fn setup_authorized_request<U>(&mut self, method: reqwest::Method, url: U) -> Result<reqwest::RequestBuilder, AuthError>
-    // where
-    //     U: reqwest::IntoUrl,
-    // {
-    //     let mut request_builder = self.inner.http_client.request(method, url);
-    //     let x = *self.inner;
-    //     // match &*self.inner.borrow_mut().get_token_and_maybe_authorize().await? {
-    //     //     Token::OAuth2(token) => {
-    //     //         request_builder = request_builder.bearer_auth(&token.access_token);
-    //     //     },
-    //     // }
-    //     Ok(request_builder)
-    // }
-
-    // async fn send_api_request<RT>(/*&self,*/ request_builder: reqwest::RequestBuilder) -> Result<ApiSuccessResponse<RT>, RequestError>
-    // where
-    //     RT: DeserializeOwned,
-    // {
-    //     // TODO json() wraps the serde error in a reqwest error, so maybe we should either do the decode ourself or map the error back so we can have a top level decode error type
-    //     let resp: ApiResponse<RT> = request_builder
-    //         .send()
-    //         .await?
-    //         .json()
-    //         .await?;
-    //     match resp.thing {
-    //         ApiResponseThing::Failure { errors } => Err(RequestError::Api {
-    //             errors,
-    //             status: resp.meta.status,
-    //             message: resp.meta.msg,
-    //         }),
-    //         ApiResponseThing::Success { response } => Ok(ApiSuccessResponse {
-    //             response,
-    //             meta: resp.meta,
-    //         }),
-    //     }
-    // }
-
-    // pub async fn user_info(&mut self) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, RequestError> {
-    //     Self::send_api_request(self.setup_authorized_request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info").await?).await
-    // }
-
     pub fn user_info(&self) -> UserInfoRequestBuilder {
         UserInfoRequestBuilder::new(self.clone())
     }
-
-    // pub async fn create_post(&mut self, blog_identifier: &str, request: crate::api::CreatePostRequest) -> Result<ApiSuccessResponse<crate::api::CreatePostResponse>, RequestError> {
-    //     Self::send_api_request(
-    //         self.setup_authorized_request(reqwest::Method::POST, format!("https://api.tumblr.com/v2/blog/{blog_identifier}/posts"))
-    //             .await?
-    //             .json(&request)
-    //     ).await
-    // }
 
     pub fn create_post<B, C>(&self, blog_identifier: B, content: C) -> CreatePostRequestBuilder
     where
@@ -393,17 +334,6 @@ impl UserInfoRequestBuilder {
             )
             .await
     }
-
-    // async fn send(mut self) -> Result</*ApiSuccessResponse<crate::api::UserInfoResponse>*/ (), RequestError>  {
-    //     let mut inner = self.client.inner.lock().unwrap();
-    //     let mut request_builder = inner.http_client.request(reqwest::Method::GET, "https://api.tumblr.com/v2/user/info");
-    //     match &*inner.get_token_and_maybe_authorize().await? {
-    //         Token::OAuth2(token) => {
-    //             request_builder = request_builder.bearer_auth(&token.access_token);
-    //         },
-    //     }
-
-    // }
 }
 
 // TODO move over the doc stuff from
