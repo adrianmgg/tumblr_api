@@ -52,7 +52,8 @@ struct BuilderFieldSetViaCtor {
 #[derive(Debug, FromMeta)]
 struct BuilderFieldSetViaSetter {
     into: Flag,
-    wrap_with: Option<syn::Expr>,
+    #[darling(multiple)]
+    wrap_with: Vec<syn::Expr>,
     arg_type: Option<syn::Type>,
 }
 
@@ -85,7 +86,7 @@ impl BuilderInputReceiver {
                         let prefixed = format_ident!("T{}", &cur_ctor_typevar_num);
                         ctor_params.push(quote!{ #ident: #prefixed });
                         ctor_generic_params.push(quote!{ #prefixed });
-                        ctor_where_clauses.push(quote!{ #prefixed: Into<#ty> });
+                        ctor_where_clauses.push(quote!{ #prefixed: ::core::convert::Into::<#ty> });
                         ctor_self_field_sets.push(quote!{ #ident: #ident.into() });
                         cur_ctor_typevar_num += 1;
                     }
@@ -104,7 +105,7 @@ impl BuilderInputReceiver {
                     if setter.into.is_present() {
                         setter_val = quote!{ #setter_val.into() };
                     }
-                    if let Some(wrap_with) = &setter.wrap_with {
+                    for wrap_with in &setter.wrap_with {
                         setter_val = quote!{ (#wrap_with)(#setter_val) };
                     }
                     let mut setter_arg_type = if let Some(arg_type) = &setter.arg_type {
