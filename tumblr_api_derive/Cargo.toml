@@ -7,5 +7,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
+darling = { version = "0.20.3", features = ["suggestions"] }
+proc-macro2 = "1.0.66"
 quote = "1.0"
 syn = "2.0"
