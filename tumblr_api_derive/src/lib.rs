@@ -24,7 +24,9 @@ fn builder_derive_impl(input: &DeriveInput) -> Result<proc_macro2::TokenStream, 
 struct BuilderInputReceiver {
     ident: syn::Ident,
     generics: syn::Generics,
+    vis: syn::Visibility,
     data: darling::ast::Data<(), BuilderFieldReceiver>,
+    builder_class: Option<syn::Ident>,
 }
 
 #[derive(Debug, FromField)]
@@ -32,6 +34,7 @@ struct BuilderInputReceiver {
 struct BuilderFieldReceiver {
     ident: Option<syn::Ident>,
     ty: syn::Type,
+    vis: syn::Visibility,
     #[darling(rename = "set")]
     set_mode: BuilderFieldSetMode,
 }
@@ -68,7 +71,50 @@ impl BuilderInputReceiver {
             .ok_or_else(|| darling::Error::custom("expected a struct").with_span(&self.ident))?
             .fields;
 
+        // whose impl we're putting the builder setter methods into
+        let builder_setters_impl_target = match &self.builder_class {
+            Some(builder_class) => builder_class,
+            None => &self.ident,
+        };
+
+        // create seperate builder struct if requested
+        if let Some(builder_class) = &self.builder_class {
+            let builder_class_fields: Vec<_> = fields
+                .iter()
+                .map(|BuilderFieldReceiver { ident, ty, .. }| quote! { #ident: #ty })
+                .collect();
+            let vis = &self.vis;
+            let self_ident = &self.ident;
+            ret.extend(quote!{
+                #vis struct #builder_class {
+                    #(#builder_class_fields),*
+                }
+            });
+            let build_fn_field_sets: Vec<_> = fields
+                .iter()
+                .map(|BuilderFieldReceiver { ident, .. }| quote!{ #ident: self.#ident })
+                .collect();
+            ret.extend(quote!{
+                impl #builder_class {
+                    pub fn build(self) -> #self_ident {
+                        #self_ident {
+                            #(#build_fn_field_sets),*
+                        }
+                    }
+                }
+            });
+        }
+
         // ctor related stuff
+        // TODO add option to manually set this name?
+        let ctor_func_name = match &self.builder_class {
+            Some(_) => quote!{ builder },
+            None => quote!{ new },
+        };
+        let ctor_return_type = match &self.builder_class {
+            Some(ident) => ident,
+            None => &self.ident,
+        };
         let mut ctor_params = Vec::new();
         let mut ctor_generic_params = Vec::new();
         let mut ctor_where_clauses = Vec::new();
@@ -136,14 +182,15 @@ impl BuilderInputReceiver {
         let ident = &self.ident;
         ret.extend(quote! {
             impl #ident {
-                pub fn new<#(#ctor_generic_params),*>(#(#ctor_params),*) -> Self
+                pub fn #ctor_func_name <#(#ctor_generic_params),*>(#(#ctor_params),*) -> #ctor_return_type
                 where #(#ctor_where_clauses),*
                 {
-                    Self {
+                    #ctor_return_type {
                         #(#ctor_self_field_sets),*
                     }
                 }
-
+            }
+            impl #builder_setters_impl_target {
                 #(#setter_funcs)*
             }
         });
