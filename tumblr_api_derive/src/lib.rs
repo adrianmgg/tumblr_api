@@ -51,6 +51,9 @@ struct BuilderFieldSetViaCtor {
 // TODO give this a better name also
 #[derive(Debug, FromMeta)]
 struct BuilderFieldSetViaSetter {
+    into: Flag,
+    wrap_with: Option<syn::Expr>,
+    arg_type: Option<syn::Type>,
 }
 
 impl BuilderInputReceiver {
@@ -64,11 +67,15 @@ impl BuilderInputReceiver {
             .ok_or_else(|| darling::Error::custom("expected a struct").with_span(&self.ident))?
             .fields;
 
+        // ctor related stuff
         let mut ctor_params = Vec::new();
         let mut ctor_generic_params = Vec::new();
         let mut ctor_where_clauses = Vec::new();
         let mut ctor_self_field_sets = Vec::new();
         let mut cur_ctor_typevar_num: u32 = 1;
+        // setters
+        let mut setter_funcs = Vec::new();
+        //
         for field in fields {
             let ident = &field.ident;
             let ty = &field.ty;
@@ -88,7 +95,39 @@ impl BuilderInputReceiver {
                     }
                 },
                 BuilderFieldSetMode::Setter(setter) => {
+                    // ctor-related stuff
                     ctor_self_field_sets.push(quote!{ #ident: ::core::default::Default::default() });
+                    // build the setter(s?)
+                    let mut setter_where_clauses = Vec::new();
+                    let mut setter_type_vars = Vec::new();
+                    let mut setter_val = quote!{ #ident };
+                    if setter.into.is_present() {
+                        setter_val = quote!{ #setter_val.into() };
+                    }
+                    if let Some(wrap_with) = &setter.wrap_with {
+                        setter_val = quote!{ (#wrap_with)(#setter_val) };
+                    }
+                    let mut setter_arg_type = if let Some(arg_type) = &setter.arg_type {
+                        quote!{ #arg_type }
+                    } else {
+                        quote!{ #ty }
+                    };
+                    if setter.into.is_present() {
+                        let typevar = quote!{T};
+                        setter_type_vars.push(typevar.clone());
+                        setter_where_clauses.push(quote!{ #typevar: ::core::convert::Into::<#setter_arg_type> });
+                        setter_arg_type = typevar;
+                    }
+                    setter_funcs.push(quote!{
+                        #[allow(clippy::missing_const_for_fn)]
+                        #[must_use]
+                        pub fn #ident <#(#setter_type_vars),*>(mut self, #ident: #setter_arg_type) -> Self
+                        where #(#setter_where_clauses),*
+                        {
+                            self.#ident = #setter_val;
+                            self
+                        }
+                    });
                 },
             }
         }
@@ -96,13 +135,15 @@ impl BuilderInputReceiver {
         let ident = &self.ident;
         ret.extend(quote! {
             impl #ident {
-                fn new<#(#ctor_generic_params),*>(#(#ctor_params),*) -> Self
+                pub fn new<#(#ctor_generic_params),*>(#(#ctor_params),*) -> Self
                 where #(#ctor_where_clauses),*
                 {
                     Self {
                         #(#ctor_self_field_sets),*
                     }
                 }
+
+                #(#setter_funcs)*
             }
         });
 
