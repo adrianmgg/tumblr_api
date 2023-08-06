@@ -7,7 +7,9 @@ fn foo() {
     #[builder()]
     #[allow(unused)]
     struct Foo {
+        #[builder(set(ctor(into)))]
+        bar: String,
         #[builder(set(ctor()))]
-        a: u32,
+        qux: u32,
     }
 }
