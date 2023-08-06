@@ -39,12 +39,18 @@ struct BuilderFieldReceiver {
 #[derive(Debug, FromMeta)]
 enum BuilderFieldSetMode {
     Ctor(BuilderFieldSetViaCtor),
+    Setter(BuilderFieldSetViaSetter),
 }
 
 // TODO give this a better name
 #[derive(Debug, FromMeta)]
 struct BuilderFieldSetViaCtor {
     into: Flag,
+}
+
+// TODO give this a better name also
+#[derive(Debug, FromMeta)]
+struct BuilderFieldSetViaSetter {
 }
 
 impl BuilderInputReceiver {
@@ -62,25 +68,27 @@ impl BuilderInputReceiver {
         let mut ctor_generic_params = Vec::new();
         let mut ctor_where_clauses = Vec::new();
         let mut ctor_self_field_sets = Vec::new();
-        let mut cur_typevar_num: u32 = 1;
+        let mut cur_ctor_typevar_num: u32 = 1;
         for field in fields {
+            let ident = &field.ident;
+            let ty = &field.ty;
             match &field.set_mode {
                 BuilderFieldSetMode::Ctor(ctor) => {
-                    let ident = &field.ident;
-                    let ty = &field.ty;
                     if ctor.into.is_present() {
-                        // TODO handle instead of unwrapping
-                        let prefixed = format_ident!("T{}", &cur_typevar_num);
+                        let prefixed = format_ident!("T{}", &cur_ctor_typevar_num);
                         ctor_params.push(quote!{ #ident: #prefixed });
                         ctor_generic_params.push(quote!{ #prefixed });
                         ctor_where_clauses.push(quote!{ #prefixed: Into<#ty> });
                         ctor_self_field_sets.push(quote!{ #ident: #ident.into() });
-                        cur_typevar_num += 1;
+                        cur_ctor_typevar_num += 1;
                     }
                     else {
                         ctor_params.push(quote!{ #ident: #ty });
-                        ctor_self_field_sets.push(quote!{ #ident: #ident, });
+                        ctor_self_field_sets.push(quote!{ #ident: #ident });
                     }
+                },
+                BuilderFieldSetMode::Setter(setter) => {
+                    ctor_self_field_sets.push(quote!{ #ident: ::core::default::Default::default() });
                 },
             }
         }

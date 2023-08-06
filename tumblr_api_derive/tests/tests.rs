@@ -11,5 +11,7 @@ fn foo() {
         bar: String,
         #[builder(set(ctor()))]
         qux: u32,
+        #[builder(set(setter()))]
+        abcd: Option<String>,
     }
 }
