@@ -18,3 +18,4 @@ serde-enum-str = "~0.3"
 serde_with = ">= 2.0.1"
 time = { version = "*", features = ["formatting"] }
 async-lock = "2"
+tumblr_api_derive = { path = "../tumblr_api_derive" }  # TODO add version too

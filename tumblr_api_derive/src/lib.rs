@@ -3,7 +3,7 @@
 use darling::{util::Flag, FromDeriveInput, FromField, FromMeta};
 // use proc_macro::TokenStream;
 use quote::{format_ident, quote, ToTokens};
-use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Ident};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Ident, Visibility};
 
 #[proc_macro_derive(Builder, attributes(builder))]
 pub fn builder_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -24,10 +24,18 @@ fn builder_derive_impl(input: &DeriveInput) -> Result<proc_macro2::TokenStream, 
 struct BuilderInputReceiver {
     ident: Ident,
     generics: syn::Generics,
-    vis: syn::Visibility,
+    vis: Visibility,
     data: darling::ast::Data<(), BuilderFieldReceiver>,
     builder_class: Option<Ident>,
     build_fn: Option<BuildFnInfo>,
+    #[darling(default, rename = "ctor")]
+    ctor_options: CtorOptions,
+}
+
+#[derive(Debug, FromMeta, Default)]
+struct CtorOptions {
+    #[darling(rename = "vis")]
+    visibility: Option<Visibility>,
 }
 
 #[derive(Debug, FromField)]
@@ -35,7 +43,7 @@ struct BuilderInputReceiver {
 struct BuilderFieldReceiver {
     ident: Option<Ident>,
     ty: syn::Type,
-    vis: syn::Visibility,
+    vis: Visibility,
     #[darling(rename = "set")]
     set_mode: BuilderFieldSetMode,
 }
@@ -44,6 +52,8 @@ struct BuilderFieldReceiver {
 enum BuilderFieldSetMode {
     Ctor(BuilderFieldSetViaCtor),
     Setter(BuilderFieldSetViaSetter),
+    #[darling(rename = "no")]
+    NotSettable,
 }
 
 // TODO give this a better name
@@ -59,6 +69,7 @@ struct BuilderFieldSetViaSetter {
     #[darling(multiple)]
     wrap_with: Vec<syn::Expr>,
     arg_type: Option<syn::Type>,
+    doc: Option<String>,
 }
 
 #[derive(Debug, FromMeta)]
@@ -152,6 +163,10 @@ impl BuilderInputReceiver {
         let mut ctor_where_clauses = Vec::new();
         let mut ctor_self_field_sets = Vec::new();
         let mut cur_ctor_typevar_num: u32 = 1;
+        let ctor_visibility = match &self.ctor_options.visibility {
+            Some(visibility) => quote!{ #visibility },
+            None => quote!{ pub },
+        };
         // setters
         let mut setter_funcs = Vec::new();
         //
@@ -197,9 +212,14 @@ impl BuilderInputReceiver {
                         setter_where_clauses.push(quote!{ #typevar: ::core::convert::Into::<#setter_arg_type> });
                         setter_arg_type = typevar;
                     }
+                    let setter_doc_attr = match &setter.doc {
+                        Some(doc) => quote!{ #[doc = #doc] },
+                        None => quote!{},
+                    };
                     setter_funcs.push(quote!{
                         #[allow(clippy::missing_const_for_fn)]
                         #[must_use]
+                        #setter_doc_attr
                         pub fn #ident <#(#setter_type_vars),*>(mut self, #ident: #setter_arg_type) -> Self
                         where #(#setter_where_clauses),*
                         {
@@ -208,13 +228,16 @@ impl BuilderInputReceiver {
                         }
                     });
                 },
+                BuilderFieldSetMode::NotSettable => {
+                    ctor_self_field_sets.push(quote!{ #ident: ::core::default::Default::default() });
+                }, 
             }
         }
 
         let ident = &self.ident;
         ret.extend(quote! {
             impl #ident {
-                pub fn #ctor_func_name <#(#ctor_generic_params),*>(#(#ctor_params),*) -> #ctor_return_type
+                #ctor_visibility fn #ctor_func_name <#(#ctor_generic_params),*>(#(#ctor_params),*) -> #ctor_return_type
                 where #(#ctor_where_clauses),*
                 {
                     #ctor_return_type {

@@ -2,6 +2,7 @@ use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use serde_with::serde_as;
 use serde_with::DurationSeconds;
 use thiserror::Error;
+use tumblr_api_derive::Builder;
 
 use std::borrow::Cow;
 use std::{
@@ -12,7 +13,6 @@ use std::{
 use veil::Redact;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use typed_builder::TypedBuilder;
 
 use crate::api::{ApiError, ApiResponseMeta};
 
@@ -33,8 +33,20 @@ pub enum Credentials {
     OAuth2(OAuth2Credentials),
 }
 
-#[derive(Redact, TypedBuilder)]
-#[builder(build_method(into), field_defaults(setter(into)))]
+impl Credentials {
+    pub fn new_oauth2<S1, S2>(consumer_key: S1, consumer_secret: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
+        Self::OAuth2(OAuth2Credentials {
+            consumer_key: consumer_key.into(),
+            consumer_secret: consumer_secret.into(),
+        })
+    }
+}
+
+#[derive(Redact)]
 pub struct OAuth2Credentials {
     #[redact]
     pub consumer_key: String,
@@ -290,37 +302,14 @@ impl Client {
     }
 }
 
-macro_rules! builder_setter {
-    ($name:ident, $type:ty) => {
-        #[allow(clippy::missing_const_for_fn)]
-        #[must_use]
-        pub fn $name(mut self, $name: $type) -> Self {
-            self.$name = Some($name);
-            self
-        }
-    };
-    ($name:ident, into $type:ty) => {
-        #[allow(clippy::missing_const_for_fn)]
-        #[must_use]
-        pub fn $name<T>(mut self, $name: T) -> Self
-        where
-            T: Into<$type>,
-        {
-            self.$name = Some($name.into());
-            self
-        }
-    };
-}
-
+#[derive(Builder)]
+#[builder(ctor(vis = ""))]
 pub struct UserInfoRequestBuilder {
+    #[builder(set(ctor()))]
     client: Client,
 }
 
 impl UserInfoRequestBuilder {
-    fn new(client: Client) -> Self {
-        Self { client }
-    }
-
     pub async fn send(
         self,
     ) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, RequestError> {
@@ -349,14 +338,26 @@ pub enum CreatePostState {
 }
 
 // TODO figure out we want to expose the `date` field (and also like. what it even does lmao)
+#[derive(Builder)]
+#[builder(ctor(vis = ""))]
 pub struct CreatePostRequestBuilder {
+    #[builder(set(ctor()))]
     client: Client,
+    #[builder(set(ctor()))]
     blog_identifier: Box<str>,
+    #[builder(set(ctor()))]
     content: Vec<crate::npf::ContentBlock>,
+    #[builder(set(setter(into, arg_type = "Box<str>", wrap_with = Some,
+        doc = "set the tags the created post will have. corresponds to [`api::CreatePostRequest::tags`][crate::api::CreatePostRequest::tags]"
+    )))]
     tags: Option<Box<str>>,
     // TODO should we skip the Option<> and just have this be set to Published by default?
+    #[builder(set(setter(into, arg_type = "CreatePostState", wrap_with = Some)))]
     initial_state: Option<CreatePostState>,
+    #[builder(set(setter(into, arg_type = "Box<str>", wrap_with = Some)))]
     source_url: Option<Box<str>>,
+    // TODO need to add 'call method on it' set mode (push in this case), and add a way to set the default used explicitly
+    #[builder(set = "no")]
     attachments: Vec<CreatePostAttachment>,
 }
 
@@ -367,26 +368,6 @@ struct CreatePostAttachment {
 }
 
 impl CreatePostRequestBuilder {
-    fn new(
-        client: Client,
-        blog_identifier: Box<str>,
-        content: Vec<crate::npf::ContentBlock>,
-    ) -> Self {
-        Self {
-            client,
-            blog_identifier,
-            content,
-            tags: None,
-            initial_state: None,
-            source_url: None,
-            attachments: Vec::new(),
-        }
-    }
-
-    builder_setter!(tags, into Box<str>);
-    builder_setter!(initial_state, CreatePostState);
-    builder_setter!(source_url, into Box<str>);
-
     #[must_use]
     pub fn add_attachment<S1, S2>(mut self, stream: reqwest::Body, mime_type: S1, identifier: S2) -> Self
     where
