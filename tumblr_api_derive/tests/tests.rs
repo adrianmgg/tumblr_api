@@ -20,7 +20,7 @@ fn foo() {
     }
 
     #[derive(Builder)]
-    #[builder(builder_class = BarBuilder)]
+    #[builder(builder_class = BarBuilder, build_fn(into))]
     #[allow(unused)]
     struct Bar {
         #[builder(set(ctor(into)))]
@@ -32,4 +32,6 @@ fn foo() {
         #[builder(set(setter(arg_type = "i32", wrap_with = Mutex::new, wrap_with = Arc::new)))]
         x: Arc<Mutex<i32>>,
     }
+
+    let _: Bar = Bar::builder("a", 1).build();
 }

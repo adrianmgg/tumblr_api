@@ -3,7 +3,7 @@
 use darling::{util::Flag, FromDeriveInput, FromField, FromMeta};
 // use proc_macro::TokenStream;
 use quote::{format_ident, quote, ToTokens};
-use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Ident};
 
 #[proc_macro_derive(Builder, attributes(builder))]
 pub fn builder_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -22,17 +22,18 @@ fn builder_derive_impl(input: &DeriveInput) -> Result<proc_macro2::TokenStream, 
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(builder), supports(struct_named))]
 struct BuilderInputReceiver {
-    ident: syn::Ident,
+    ident: Ident,
     generics: syn::Generics,
     vis: syn::Visibility,
     data: darling::ast::Data<(), BuilderFieldReceiver>,
-    builder_class: Option<syn::Ident>,
+    builder_class: Option<Ident>,
+    build_fn: Option<BuildFnInfo>,
 }
 
 #[derive(Debug, FromField)]
 #[darling(attributes(builder))]
 struct BuilderFieldReceiver {
-    ident: Option<syn::Ident>,
+    ident: Option<Ident>,
     ty: syn::Type,
     vis: syn::Visibility,
     #[darling(rename = "set")]
@@ -58,6 +59,12 @@ struct BuilderFieldSetViaSetter {
     #[darling(multiple)]
     wrap_with: Vec<syn::Expr>,
     arg_type: Option<syn::Type>,
+}
+
+#[derive(Debug, FromMeta)]
+struct BuildFnInfo {
+    name: Option<Ident>,
+    into: Flag,
 }
 
 impl BuilderInputReceiver {
@@ -90,20 +97,45 @@ impl BuilderInputReceiver {
                     #(#builder_class_fields),*
                 }
             });
-            let build_fn_field_sets: Vec<_> = fields
-                .iter()
-                .map(|BuilderFieldReceiver { ident, .. }| quote!{ #ident: self.#ident })
-                .collect();
-            ret.extend(quote!{
-                impl #builder_class {
-                    pub fn build(self) -> #self_ident {
-                        #self_ident {
-                            #(#build_fn_field_sets),*
+            // create build method
+            if let Some(build_fn) = &self.build_fn {
+                let build_fn_name = match &build_fn.name {
+                    Some(ident) => ident.clone(),
+                    None => format_ident!("build"),
+                };
+                let build_fn_field_sets: Vec<_> = fields
+                    .iter()
+                    .map(|BuilderFieldReceiver { ident, .. }| quote!{ #ident: self.#ident })
+                    .collect();
+                let mut build_fn_generic_params = Vec::new();
+                let mut build_fn_where_clauses = Vec::new();
+                let mut build_fn_return_type = quote!{ #self_ident };
+                let mut build_fn_body = quote!{
+                    #self_ident {
+                        #(#build_fn_field_sets),*
+                    }
+                };
+                if build_fn.into.is_present() {
+                    build_fn_generic_params.push(quote!{ T });
+                    build_fn_where_clauses.push(quote!{ #build_fn_return_type: ::core::convert::Into<T> });
+                    build_fn_return_type = quote!{ T };
+                    build_fn_body = quote!{ (#build_fn_body).into() }
+                }
+                ret.extend(quote! {
+                    impl #builder_class {
+                        pub fn #build_fn_name<#(#build_fn_generic_params),*>(self) -> #build_fn_return_type
+                        where #(#build_fn_where_clauses),*
+                        {
+                            #build_fn_body
                         }
                     }
-                }
-            });
+                });
+            }
+        } else if self.build_fn.is_some() {
+            // TODO span this properly
+            return Err(darling::Error::custom("build_fn not yet supported without builder_class"));
         }
+
 
         // ctor related stuff
         // TODO add option to manually set this name?
