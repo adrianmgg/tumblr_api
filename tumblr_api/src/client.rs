@@ -305,7 +305,7 @@ impl Client {
 #[derive(Builder)]
 #[builder(ctor(vis = ""))]
 pub struct UserInfoRequestBuilder {
-    #[builder(set(ctor()))]
+    #[builder(set(ctor))]
     client: Client,
 }
 
@@ -341,20 +341,20 @@ pub enum CreatePostState {
 #[derive(Builder)]
 #[builder(ctor(vis = ""))]
 pub struct CreatePostRequestBuilder {
-    #[builder(set(ctor()))]
+    #[builder(set(ctor))]
     client: Client,
-    #[builder(set(ctor()))]
+    #[builder(set(ctor))]
     blog_identifier: Box<str>,
-    #[builder(set(ctor()))]
+    #[builder(set(ctor))]
     content: Vec<crate::npf::ContentBlock>,
-    #[builder(set(setter(into, arg_type = "Box<str>", wrap_with = Some,
+    #[builder(set(setter(into, strip_option,
         doc = "set the tags the created post will have. corresponds to [`api::CreatePostRequest::tags`][crate::api::CreatePostRequest::tags]"
     )))]
     tags: Option<Box<str>>,
     // TODO should we skip the Option<> and just have this be set to Published by default?
-    #[builder(set(setter(into, arg_type = "CreatePostState", wrap_with = Some)))]
+    #[builder(set(setter(into, strip_option)))]
     initial_state: Option<CreatePostState>,
-    #[builder(set(setter(into, arg_type = "Box<str>", wrap_with = Some)))]
+    #[builder(set(setter(into, strip_option)))]
     source_url: Option<Box<str>>,
     // TODO need to add 'call method on it' set mode (push in this case), and add a way to set the default used explicitly
     #[builder(set = "no")]

@@ -11,7 +11,7 @@ fn foo() {
     struct Foo {
         #[builder(set(ctor(into)))]
         bar: String,
-        #[builder(set(ctor()))]
+        #[builder(set(ctor))]
         qux: u32,
         #[builder(set(setter(into, wrap_with = Option::Some, arg_type = "String")))]
         abcd: Option<String>,

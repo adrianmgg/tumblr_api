@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use tumblr_api_derive::Builder;
 use typed_builder::TypedBuilder;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -98,18 +99,18 @@ impl From<ContentBlockPoll> for ContentBlock {
 }
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-text>
-#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[builder(doc, build_method(into))]
+#[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
+#[builder()]
 pub struct ContentBlockText {
-    #[builder(setter(into))]
+    #[builder(set(ctor))]
     pub text: String,
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subtype: Option<TextSubtype>,
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub indent_level: Option<i32>,
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub formatting: Option<Vec<InlineFormat>>,
 }

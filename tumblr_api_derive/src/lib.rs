@@ -50,14 +50,14 @@ struct BuilderFieldReceiver {
 
 #[derive(Debug, FromMeta)]
 enum BuilderFieldSetMode {
-    Ctor(BuilderFieldSetViaCtor),
+    Ctor(darling::util::Override<BuilderFieldSetViaCtor>),
     Setter(BuilderFieldSetViaSetter),
     #[darling(rename = "no")]
     NotSettable,
 }
 
 // TODO give this a better name
-#[derive(Debug, FromMeta)]
+#[derive(Debug, FromMeta, Default)]
 struct BuilderFieldSetViaCtor {
     into: Flag,
 }
@@ -70,6 +70,7 @@ struct BuilderFieldSetViaSetter {
     wrap_with: Vec<syn::Expr>,
     arg_type: Option<syn::Type>,
     doc: Option<String>,
+    strip_option: Flag,
 }
 
 #[derive(Debug, FromMeta)]
@@ -172,23 +173,38 @@ impl BuilderInputReceiver {
         //
         for field in fields {
             let ident = &field.ident;
-            let ty = &field.ty;
+            let field_type = &field.ty;
             match &field.set_mode {
                 BuilderFieldSetMode::Ctor(ctor) => {
-                    if ctor.into.is_present() {
+                    let ctor_into = match ctor { // TODO
+                        darling::util::Override::Inherit => BuilderFieldSetViaCtor::default().into,
+                        darling::util::Override::Explicit(c) => c.into,
+                    };
+                    if ctor_into.is_present() {
                         let prefixed = format_ident!("T{}", &cur_ctor_typevar_num);
                         ctor_params.push(quote!{ #ident: #prefixed });
                         ctor_generic_params.push(quote!{ #prefixed });
-                        ctor_where_clauses.push(quote!{ #prefixed: ::core::convert::Into::<#ty> });
+                        ctor_where_clauses.push(quote!{ #prefixed: ::core::convert::Into::<#field_type> });
                         ctor_self_field_sets.push(quote!{ #ident: #ident.into() });
                         cur_ctor_typevar_num += 1;
                     }
                     else {
-                        ctor_params.push(quote!{ #ident: #ty });
+                        ctor_params.push(quote!{ #ident: #field_type });
                         ctor_self_field_sets.push(quote!{ #ident: #ident });
                     }
                 },
                 BuilderFieldSetMode::Setter(setter) => {
+                    // TODO ough rewrite this part
+                    let mut arg_type = setter.arg_type.clone();
+                    let mut wrap_with = setter.wrap_with.clone();
+                    if setter.strip_option.is_present() {
+                        // TODO do proper errors for these rather than just panicking
+                        // TODO wait should we be prepending or appending do wrap_with
+                        assert!(arg_type.is_none());
+                        // assert!(wrap_with.is_empty());
+                        arg_type = Some(strip_option_from(field_type)?);
+                        wrap_with.push(syn::parse_quote!(::core::option::Option::Some));
+                    }
                     // ctor-related stuff
                     ctor_self_field_sets.push(quote!{ #ident: ::core::default::Default::default() });
                     // build the setter(s?)
@@ -198,13 +214,13 @@ impl BuilderInputReceiver {
                     if setter.into.is_present() {
                         setter_val = quote!{ #setter_val.into() };
                     }
-                    for wrap_with in &setter.wrap_with {
-                        setter_val = quote!{ (#wrap_with)(#setter_val) };
+                    for w in &wrap_with {
+                        setter_val = quote!{ (#w)(#setter_val) };
                     }
-                    let mut setter_arg_type = if let Some(arg_type) = &setter.arg_type {
-                        quote!{ #arg_type }
-                    } else {
+                    let mut setter_arg_type = if let Some(ty) = arg_type {
                         quote!{ #ty }
+                    } else {
+                        quote!{ #field_type }
                     };
                     if setter.into.is_present() {
                         let typevar = quote!{T};
@@ -252,4 +268,51 @@ impl BuilderInputReceiver {
 
         Ok(ret)
     }
+}
+
+// TODO ough implement this better
+fn strip_option_from(ty: &syn::Type) -> Result<syn::Type, darling::Error> {
+    // match ty {
+    //     syn::Type::Path(syn::TypePath {
+    //         qself: None,
+    //         path
+    //     }) => {
+    //         let a = &path
+    //             .segments
+    //             .iter()
+    //             .map(|s| s.ident.to_string())
+    //             .collect::<Vec<_>>()
+    //             .join("[::]");
+    //         let b = &path.segments.last().unwrap().arguments;
+    //         todo!("[{:?}] [{:?}]", a, b);
+    //     },
+    //     _ => Err(darling::Error::custom("unable to strip Option from provided type").with_span(&ty.span())),
+    // }
+
+    let a = quote!{#ty}
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    if a.len() >= 4 {
+        use proc_macro2::TokenTree;
+        let first = a.get(0).unwrap();
+        let next = a.get(1).unwrap();
+        let last = a.last().unwrap();
+        if let (TokenTree::Ident(first), TokenTree::Punct(next), TokenTree::Punct(last)) =
+            (first, next, last)
+        {
+            let first = first.to_string();
+            let next = next.as_char();
+            let last = last.as_char();
+            if first == "Option" && next == '<' && last == '>' {
+                let a = &a[2..a.len()-1];
+                let r: syn::Type = syn::parse_quote!(#(#a)*);
+                // let r = quote!()
+                // todo!("[{:?}]", a);
+                return Ok(r);
+            }
+        }
+    }
+
+    Err(darling::Error::custom("unable to strip Option from provided type").with_span(&ty.span()))
 }
