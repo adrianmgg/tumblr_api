@@ -289,7 +289,7 @@ fn strip_option_from(ty: &syn::Type) -> Result<syn::Type, darling::Error> {
     //     _ => Err(darling::Error::custom("unable to strip Option from provided type").with_span(&ty.span())),
     // }
 
-    let a = quote!{#ty}
+    let a = ty.to_token_stream()
         .into_iter()
         .collect::<Vec<_>>();
 
@@ -307,8 +307,6 @@ fn strip_option_from(ty: &syn::Type) -> Result<syn::Type, darling::Error> {
             if first == "Option" && next == '<' && last == '>' {
                 let a = &a[2..a.len()-1];
                 let r: syn::Type = syn::parse_quote!(#(#a)*);
-                // let r = quote!()
-                // todo!("[{:?}]", a);
                 return Ok(r);
             }
         }

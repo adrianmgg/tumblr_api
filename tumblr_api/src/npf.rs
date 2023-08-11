@@ -100,7 +100,7 @@ impl From<ContentBlockPoll> for ContentBlock {
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-text>
 #[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
-#[builder()]
+#[builder(builder_class = ContentBlockTextBuilder, build_fn(into))]
 pub struct ContentBlockText {
     #[builder(set(ctor))]
     pub text: String,
@@ -116,25 +116,26 @@ pub struct ContentBlockText {
 }
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-image>
-#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[builder(doc, build_method(into))]
+#[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
+#[builder(builder_class = ContentBlockImageBuilder, build_fn(into))]
 pub struct ContentBlockImage {
     /// "An array of [MediaObject]s which represent different available sizes of this image asset."
+    #[builder(set(ctor))]
     pub media: Vec<MediaObject>,
     /// "Colors used in the image."
     ///
     /// (undocumented) note: colors may instead be listed under [`MediaObject::colors`] in individual entries of [`ContentBlockImage::media`]
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub colors: Option<HashMap<String, String>>,
     /// "A feedback token to use when this image block is a GIF Search result."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feedback_token: Option<String>,
     // (one spot in the docs says that an image's `poster` goes here -- that's wrong afaict, it goes in the media object)
     // TODO doc ("See the Attributions section for details about these objects.")
     // TODO some posts sent with `"attribution": []` ???
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(
         skip_serializing_if = "Option::is_none",
         default,
@@ -143,12 +144,12 @@ pub struct ContentBlockImage {
     pub attribution: Option<Attribution>,
     /// "Text used to describe the image, for screen readers. 4096 character maximum."
     // TODO enforce that max length on serialize
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alt_text: Option<String>,
     /// "A caption typically shown under the image. 4096 character maximum."
     // TODO enforce that max length on serialize
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub caption: Option<String>,
     /// (undocumented) exif tags associated with the image
@@ -160,79 +161,80 @@ pub struct ContentBlockImage {
     /// {"Time": "1625497381"}
     /// ```
     /// (note how `"Time"` is sometimes a string!)
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exif: Option<serde_json::Map<String, serde_json::Value>>,
     /// (undocumented)
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub clickthrough: Option<Clickthrough>,
 }
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-link>
-#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[builder(doc, build_method(into))]
+#[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
+#[builder(builder_class = ContentBlockLinkBuilder, build_fn(into))]
 pub struct ContentBlockLink {
     /// "The URL to use for the link block."
+    #[builder(set(ctor))]
     pub url: String,
     /// "The title of where the link goes."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     /// "The description of where the link goes."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// "The author of the link's content."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
     /// "The name of the site being linked to."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub site_name: Option<String>,
     /// "Supplied on NPF Post consumption, ignored during NPF Post creation."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_url: Option<String>,
     /// "Supplied on NPF Post consumption, ignored during NPF Post creation."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub poster: Option<Vec<MediaObject>>,
 }
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-audio>
-#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[builder(doc, build_method(into))]
+#[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
+#[builder(builder_class = ContentBlockAudioBuilder, build_fn(into))]
 pub struct ContentBlockAudio {
     // TODO - "either the media field or url field must be present" -- should the types of this represent the either/or-ness of that? (also applies to ::Video)
     /// "The URL to use for the audio block, if no media is present."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     /// "The Media Object to use for the audio block, if no url is present."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media: Option<MediaObject>,
     // TODO should maybe have this as an enum with an 'other' variant
     /// "The provider of the audio source, whether it's tumblr for native audio or a trusted third party."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     /// "The title of the audio asset."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     /// "The artist of the audio asset."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub artist: Option<String>,
     /// "The album from which the audio asset originated."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub album: Option<String>,
     /// "An image media object to use as a "poster" for the audio track, usually album art."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(
         skip_serializing_if = "Option::is_none",
         default,
@@ -240,20 +242,20 @@ pub struct ContentBlockAudio {
     )]
     pub poster: Option<MediaObject>,
     /// "HTML code that could be used to embed this audio track into a webpage."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_html: Option<String>,
     /// "A URL to the embeddable content to use as an iframe."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_url: Option<String>,
     /// "Optional provider-specific metadata about the audio track."
     // TODO is Value the right thing to use here?
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
     /// "Optional attribution information about where the audio track came from."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(
         skip_serializing_if = "Option::is_none",
         default,
