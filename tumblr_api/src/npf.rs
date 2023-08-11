@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Deserializer, Serialize};
 use tumblr_api_derive::Builder;
-use typed_builder::TypedBuilder;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -102,7 +101,7 @@ impl From<ContentBlockPoll> for ContentBlock {
 #[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
 #[builder(builder_class = ContentBlockTextBuilder, build_fn(into))]
 pub struct ContentBlockText {
-    #[builder(set(ctor))]
+    #[builder(set(ctor(into)))]
     pub text: String,
     #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -265,44 +264,44 @@ pub struct ContentBlockAudio {
 }
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-video>
-#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[builder(doc, build_method(into))]
+#[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
+#[builder(builder_class = ContentBlockVideoBuilder, build_fn(into))]
 pub struct ContentBlockVideo {
     /// "The URL to use for the video block, if no media is present."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     /// "The Media Object to use for the video block, if no url is present."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media: Option<MediaObject>,
     /// "The provider of the video, whether it's tumblr for native video or a trusted third party."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     /// "HTML code that could be used to embed this video into a webpage."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_html: Option<String>,
     /// "An embed iframe object used for constructing video iframes."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_iframe: Option<EmbedIframe>,
     /// "A URL to the embeddable content to use as an iframe."
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_url: Option<String>,
     /// "An image media object to use as a "poster" for the video, usually a single frame."
     // (table in the docs say this is a single MediaObject, but it's actually a list of them)
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub poster: Option<Vec<MediaObject>>,
     /// "Optional provider-specific metadata about the video."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
     /// "Optional attribution information about where the video came from."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(
         skip_serializing_if = "Option::is_none",
         default,
@@ -310,34 +309,40 @@ pub struct ContentBlockVideo {
     )]
     pub attribution: Option<Attribution>,
     /// "Whether this video can be played on a cellular connection."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub can_autoplay_on_cellular: Option<bool>,
     // kinda undocumented, it's in one of the examples in the docs but they never explain it
     // TODO sometimes just a single value rather than a list
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub filmstrip: Option<MediaObject>,
 }
 
 /// <https://www.tumblr.com/docs/npf#content-block-type-paywall>
-#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[builder(doc, build_method(into))]
+#[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
+#[builder(builder_class = ContentBlockPaywallBuilder, build_fn(into))]
 pub struct ContentBlockPaywall {
     // TODO
 }
 
 /// (undocumented)
 // TODO - some of these fields should probably be optiona
-#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[builder(doc, build_method(into))]
+#[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
+#[builder(builder_class = ContentBlockPollBuilder, build_fn(into))]
 pub struct ContentBlockPoll {
+    #[builder(set(ctor))]
     pub client_id: String,
+    #[builder(set(ctor))]
     pub question: String,
+    #[builder(set(ctor))]
     pub answers: Vec<PollAnswer>,
+    #[builder(set(ctor))]
     pub settings: PollSettings,
     // TODO - timestamp string, should probably parse it
+    #[builder(set(ctor))]
     pub created_at: String,
+    #[builder(set(ctor))]
     pub timestamp: i64,
 }
 
@@ -387,53 +392,53 @@ pub enum InlineFormatType {
 }
 
 /// <https://www.tumblr.com/docs/npf#media-objects>
-#[derive(Serialize, Deserialize, TypedBuilder, Debug, PartialEq, Eq)]
-#[builder(doc)]
+#[derive(Serialize, Deserialize, Builder, Debug, PartialEq, Eq)]
+#[builder(builder_class = MediaObjectBuilder, build_fn())]
 #[serde(deny_unknown_fields)]
 pub struct MediaObject {
     /// "The canonical URL of the media asset"
-    #[builder(setter())]
+    #[builder(set(ctor))]
     #[serde(flatten)]
     pub content: MediaObjectContent,
     /// "The MIME type of the media asset, or a best approximation will be made based on the given URL"
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
     /// "The width of the media asset, if that makes sense (for images and videos, but not for audio)"
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<i32>,
     /// "The height of the media asset, if that makes sense (for images and videos, but not for audio)"
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<i32>,
     /// "For display purposes, this indicates whether the dimensions are defaults"
     /// > If the original dimensions of the media are not known, a boolean flag [MediaObject.original_dimensions_missing] with a value of true will also be included in the media object. In this scenario, width and height will be assigned default dimensional values of 540 and 405 respectively. Please note that this field should only be available when consuming an NPF Post, it is not allowed during Post creation."
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_dimensions_missing: Option<bool>,
     /// "This indicates whether this media object is a cropped version of the original media"
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cropped: Option<bool>,
     /// "This indicates whether this media object has the same dimensions as the original media"
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_original_dimensions: Option<bool>,
     /// (undocumented)
-    #[builder(default, setter(into, strip_option))]
+    #[builder(set(setter(into, strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media_key: Option<String>,
     /// (undocumented) see [`ContentBlockImage::colors`]
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub colors: Option<HashMap<String, String>>,
     /// <https://www.tumblr.com/docs/npf#gif-posters>
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub poster: Option<Box<MediaObject>>,
     /// (undocumented) video alternative for animated gif image
-    #[builder(default, setter(strip_option))]
+    #[builder(set(setter(strip_option)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub video: Option<Vec<MediaObject>>,
 }
