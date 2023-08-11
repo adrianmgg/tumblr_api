@@ -25,13 +25,12 @@ fn content_block_text() {
     json_serde_eq!(
         ContentBlock,
         r#"{"type": "text", "text": "Hello world!"}"#,
-        ContentBlock::Text(ContentBlockText::builder().text("Hello world!").build())
+        ContentBlock::Text(ContentBlockText::builder("Hello world!").build())
     );
     json_serde_eq!(
         ContentBlock,
         r#"{"type":"text", "text":"some bold indented text", "subtype": "indented", "indent_level": 1, "formatting":[{"start":5,"end":9,"type":"bold"}]}"#,
-        ContentBlockText::builder()
-            .text("some bold indented text")
+        ContentBlockText::builder("some bold indented text")
             .subtype(TextSubtype::Indented)
             .indent_level(1)
             .formatting(vec![InlineFormat {
@@ -48,7 +47,7 @@ fn content_block_attribution_empty_list() {
     json_de_eq!(
         ContentBlock,
         r#"{"type": "image", "media": [], "attribution": []}"#,
-        ContentBlockImage::builder().media(vec![]).build()
+        ContentBlockImage::builder(vec![]).build()
     );
 }
 
