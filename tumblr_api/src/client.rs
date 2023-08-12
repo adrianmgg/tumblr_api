@@ -300,6 +300,10 @@ impl Client {
     {
         CreatePostRequestBuilder::new(self.clone(), blog_identifier.into(), content.into())
     }
+
+    pub fn api_limits(&self) -> ApiLimitsRequestBuilder {
+        ApiLimitsRequestBuilder::new(self.clone())
+    }
 }
 
 #[derive(Builder)]
@@ -443,6 +447,29 @@ impl CreatePostRequestBuilder {
                         })
                         .collect(),
                 ),
+            )
+            .await
+    }
+}
+
+#[derive(Builder)]
+#[builder(ctor(vis = ""))]
+pub struct ApiLimitsRequestBuilder {
+    #[builder(set(ctor))]
+    client: Client,
+}
+
+impl ApiLimitsRequestBuilder {
+    pub async fn send(
+        self,
+    ) -> Result<ApiSuccessResponse<crate::api::ApiLimitsResponse>, RequestError> {
+        self.client
+            .inner
+            .do_request(
+                reqwest::Method::GET,
+                "https://api.tumblr.com/v2/user/limits",
+                Option::<String>::None,
+                None,
             )
             .await
     }

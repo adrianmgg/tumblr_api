@@ -1,5 +1,6 @@
 use crate::npf;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use typed_builder::TypedBuilder;
 
 // https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
@@ -413,4 +414,44 @@ pub struct CreatePostResponse {
     /// unknown/unhandled fields
     #[serde(flatten)]
     pub other_fields: serde_json::Map<String, serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ApiLimitsResponse {
+    pub user: ApiUserLimits,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ApiUserLimits {
+    // TODO add 'other' field with (name -> entry) map too?
+    // TODO should these be `Option`s? they're not documented
+    /// the number of secondary blogs you can create per day
+    pub blogs: ApiLimitEntry,
+    /// the number of blogs you can follow per day
+    pub follows: ApiLimitEntry,
+    /// the number of posts you can like per day
+    pub likes: ApiLimitEntry,
+    /// the number of photos you can upload per day
+    pub photos: ApiLimitEntry,
+    /// the number of posts you can create per day
+    pub posts: ApiLimitEntry,
+    /// the number of seconds of video content you can upload per day
+    pub video_seconds: ApiLimitEntry,
+    /// the number of video files you can upload per day
+    pub videos: ApiLimitEntry,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ApiLimitEntry {
+    pub description: String,
+    pub limit: i64,
+    // TODO can remaining ever be negative? if not, should this be unsigned?
+    pub remaining: i64,
+    // TODO does time::serde::timestamp give us the right time zone?
+    #[serde(with = "time::serde::timestamp")]
+    pub reset_at: OffsetDateTime,
+}
+
+impl ApiLimitEntry {
+    // TODO add helpers for checking if the limit is done & checking if the reset has elapsed
 }
