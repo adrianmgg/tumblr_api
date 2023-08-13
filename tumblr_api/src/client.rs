@@ -56,7 +56,7 @@ use veil::Redact;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::api::{ApiError, ApiResponseMeta};
+use crate::api::{ApiError, ApiResponseMeta, ApiResponse};
 
 #[derive(Clone)]
 pub struct Client {
@@ -189,20 +189,6 @@ pub enum RequestError {
     },
 }
 
-#[derive(Debug, Deserialize)]
-struct ApiResponse<RT> {
-    meta: ApiResponseMeta,
-    #[serde(flatten)]
-    thing: ApiResponseThing<RT>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum ApiResponseThing<RT> {
-    Failure { errors: Vec<ApiError> },
-    Success { response: RT },
-}
-
 #[derive(Debug)]
 pub struct ApiSuccessResponse<RT> {
     pub meta: ApiResponseMeta,
@@ -305,15 +291,15 @@ impl ClientInner {
         // TODO json() wraps the serde error in a reqwest error, so maybe we should either do the decode ourself or map the error back so we can have a top level decode error type
         let resp: ApiResponse<RT> = request_builder.send().await?.json().await?;
 
-        match resp.thing {
-            ApiResponseThing::Failure { errors } => Err(RequestError::Api {
+        match resp {
+            ApiResponse::Failure { errors, meta } => Err(RequestError::Api {
                 errors,
-                status: resp.meta.status,
-                message: resp.meta.msg,
+                status: meta.status,
+                message: meta.msg,
             }),
-            ApiResponseThing::Success { response } => Ok(ApiSuccessResponse {
+            ApiResponse::Success { response, meta } => Ok(ApiSuccessResponse {
                 response,
-                meta: resp.meta,
+                meta,
             }),
         }
     }

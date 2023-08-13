@@ -283,15 +283,29 @@ pub struct ApiError {
     code: i32,
 }
 
+// TODO if response / response meta don't capture unknown fields then they should probably be set to fail on unknown fields
+
+#[derive(Debug, Deserialize)]
+pub enum ApiResponse<RT> {
+    Failure {
+        meta: ApiResponseMeta,
+        errors: Vec<ApiError>,
+    },
+    Success {
+        meta: ApiResponseMeta,
+        response: RT,
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ApiResponseMeta {
     /// "The 3-digit HTTP Status-Code (e.g., 200)"
     pub status: i32,
     /// "The HTTP Reason-Phrase (e.g., OK)"
     pub msg: String,
-    /// unknown/unhandled fields
-    #[serde(flatten)]
-    pub other_fields: serde_json::Map<String, serde_json::Value>,
+    // /// unknown/unhandled fields
+    // #[serde(flatten)]
+    // pub other_fields: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
