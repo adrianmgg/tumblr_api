@@ -3,21 +3,23 @@ name = "tumblr_api"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["client"]
+client = ["api", "npf", "dep:reqwest", "dep:thiserror", "dep:veil", "dep:async-lock", "dep:time", "dep:serde_with", "dep:serde-enum-str"]
+api = ["npf", "dep:time"]
+npf = []
 
 [dependencies]
-reqwest = { version = "~0.11.2", features = ["json", "multipart"] }
+reqwest = { version = "~0.11.2", features = ["json", "multipart"], optional = true }
 serde = { version = "~1.0.103", features = ["serde_derive"] }
 serde_json = "~1.0.73"
 typed-builder = "0.14"
-thiserror = "~1.0.7"
-base64 = "~0.13"
-form_urlencoded = "1"
-veil = "0.1"
-serde-enum-str = "~0.3"
-serde_with = ">= 2.0.1"
-time = { version = "*", features = ["formatting", "serde"] }
-async-lock = "2"
+thiserror = { version = "~1.0.7", optional = true }
+veil = { version = "0.1", optional = true }
+serde-enum-str = { version = "~0.3", optional = true }
+serde_with = { version = ">= 2.0.1", optional = true }
+time = { version = "*", features = ["formatting", "serde"], optional = true }
+async-lock = { version = "2", optional = true }
 tumblr_api_derive = { path = "../tumblr_api_derive" }  # TODO add version too
 
 [dev-dependencies]
