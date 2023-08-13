@@ -1,3 +1,5 @@
+//! An implementation of Tumblr's [Neue Post Format](https://www.tumblr.com/docs/npf).
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Deserializer, Serialize};

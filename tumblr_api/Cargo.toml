@@ -19,3 +19,6 @@ serde_with = ">= 2.0.1"
 time = { version = "*", features = ["formatting", "serde"] }
 async-lock = "2"
 tumblr_api_derive = { path = "../tumblr_api_derive" }  # TODO add version too
+
+[dev-dependencies]
+tokio = { version = "1.31.0", features = ["full"] }

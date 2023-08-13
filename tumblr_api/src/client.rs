@@ -1,3 +1,45 @@
+// TODO (see below)
+//! client (TODO: one-line description here)
+//! 
+//! # Examples
+//! 
+//! creating a client
+//! ```no_run
+//! use tumblr_api::client::{Client, Credentials};
+//! let client = Client::new(Credentials::new_oauth2("your consumer key", "your consumer secret"));
+//! ```
+//! 
+// TODO (see below)
+//! TODO example name here
+//! ```no_run
+//! # use tumblr_api::client::{Client, Credentials};
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), tumblr_api::client::RequestError> {
+//! # let client = Client::new(Credentials::new_oauth2("your consumer key", "your consumer secret"));
+//! let limits = client.api_limits().send().await?;
+//! println!("you are {} posts away from hitting post limit", limits.user.posts.remaining);
+//! # Ok(())
+//! # }
+//! ```
+//! 
+//! creating a post
+//! ```no_run
+//! # use tumblr_api::client::{Client, Credentials};
+//! use tumblr_api::npf;
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), tumblr_api::client::RequestError> {
+//! # let client = Client::new(Credentials::new_oauth2("your consumer key", "your consumer secret"));
+//! client
+//!     .create_post(
+//!         "blog-name",
+//!         vec![npf::ContentBlockText::builder("hello world").build()],
+//!     )
+//!     .send()
+//!     .await?;
+//! # Ok(())
+//! # }
+//! ```
+
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use serde_with::serde_as;
 use serde_with::DurationSeconds;

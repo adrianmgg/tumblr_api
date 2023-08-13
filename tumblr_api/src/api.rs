@@ -1,3 +1,8 @@
+//! request/result types for using the api directly.
+//! 
+// TODO rewrite this line
+//! If you just want to call the api, you probably want the [`client`][crate::client] module instead.
+
 use crate::npf;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
