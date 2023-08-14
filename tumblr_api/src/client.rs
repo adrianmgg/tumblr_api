@@ -43,7 +43,6 @@
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use serde_with::serde_as;
 use serde_with::DurationSeconds;
-use thiserror::Error;
 use tumblr_api_derive::Builder;
 
 use std::borrow::Cow;
@@ -56,7 +55,7 @@ use veil::Redact;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::api::{ApiError, ApiResponseMeta, ApiResponse};
+use crate::api::{ApiResponse, ApiSuccessResponse};
 
 #[derive(Clone)]
 pub struct Client {
@@ -160,7 +159,7 @@ pub struct OAuth2Token {
     expires_at: Instant,
 }
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum AuthError {
     #[error(transparent)]
     Network(#[from] reqwest::Error),
@@ -173,26 +172,14 @@ pub enum AuthError {
     },
 }
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum RequestError {
     #[error(transparent)]
     Auth(#[from] AuthError),
     #[error(transparent)]
     Network(#[from] reqwest::Error),
-    #[error("api error! status: {status} message: {message} errors: {errors:#?}")]
-    // TODO better message format
-    Api {
-        status: i32,
-        message: String,
-        errors: Vec<ApiError>,
-        // TODO we're capturing other_fields on the response meta, should that be included here?
-    },
-}
-
-#[derive(Debug)]
-pub struct ApiSuccessResponse<RT> {
-    pub meta: ApiResponseMeta,
-    pub response: RT,
+    #[error(transparent)]
+    Api(#[from] crate::api::ResponseError),
 }
 
 impl Credentials {
@@ -291,17 +278,8 @@ impl ClientInner {
         // TODO json() wraps the serde error in a reqwest error, so maybe we should either do the decode ourself or map the error back so we can have a top level decode error type
         let resp: ApiResponse<RT> = request_builder.send().await?.json().await?;
 
-        match resp {
-            ApiResponse::Failure { errors, meta } => Err(RequestError::Api {
-                errors,
-                status: meta.status,
-                message: meta.msg,
-            }),
-            ApiResponse::Success { response, meta } => Ok(ApiSuccessResponse {
-                response,
-                meta,
-            }),
-        }
+        let resp: crate::api::ResponseResult<RT> = resp.into();
+        Ok(resp?)
     }
 }
 

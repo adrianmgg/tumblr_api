@@ -23,4 +23,5 @@ async-lock = { version = "2", optional = true }
 tumblr_api_derive = { path = "../tumblr_api_derive" }  # TODO add version too
 
 [dev-dependencies]
+anyhow = "1.0.72"
 tokio = { version = "1.31.0", features = ["full"] }

@@ -1,10 +1,11 @@
 //! request/result types for using the api directly.
-//! 
+//!
 // TODO rewrite this line
 //! If you just want to call the api, you probably want the [`client`][crate::client] module instead.
 
 use crate::npf;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use time::OffsetDateTime;
 use typed_builder::TypedBuilder;
 
@@ -275,29 +276,84 @@ pub struct InteractabilityInfo {
     pub can_reply: bool,
 }
 
-// https://www.tumblr.com/docs/en/api/v2#userinfo--get-a-users-information#errors-and-error-subcodes
+// https://www.tumblr.com/docs/en/api/v2#errors-and-error-subcodes
+/// Represents a single error reported by the API .
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ApiError {
-    // TODO should title/code be `Option`al?
-    title: String,
-    code: i32,
+pub struct ApiErrorEntry {
+    // TODO should title/code be `Option`al? are they ever not included?
+    pub title: String,
+    pub code: i32,
 }
 
 // TODO if response / response meta don't capture unknown fields then they should probably be set to fail on unknown fields
+// TODO should the response types also be `Serialize`?
 
+// TODO improve this description
+/// for directly deserializing the JSON returned by the tumblr api.
+///
+/// `RT` is the type of the particular response, and should implement [`Deserialize`][serde::Deserialize]
+///
+/// ```
+/// use tumblr_api::api::{ApiResponse, CreatePostResponse};
+/// # fn main() -> anyhow::Result<()> {
+/// let data = r#"{
+///     "meta": { "msg": "Created", "status": 201 },
+///     "response": { "id": "1234567891234567" }
+/// }"#;
+/// let resp: ApiResponse<CreatePostResponse> = serde_json::from_str(data)?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// If you want a `Result` to work with, it to a [`ResponseResult<RT>`][ResponseResult] with the same `RT`.
+/// ```
+/// # use tumblr_api::api::{ApiResponse, CreatePostResponse};
+/// use tumblr_api::api::ResponseResult;
+/// # fn main() -> anyhow::Result<()> {
+/// # let data = r#"{"meta":{"msg":"Created","status":201},"response":{"id":"1234567891234567"}}"#;
+/// let resp: ResponseResult<CreatePostResponse> =
+///     serde_json::from_str::<ApiResponse<_>>(data)?.into();
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
 pub enum ApiResponse<RT> {
-    Failure {
-        meta: ApiResponseMeta,
-        errors: Vec<ApiError>,
-    },
-    Success {
-        meta: ApiResponseMeta,
-        response: RT,
+    Failure(ApiFailureResponse),
+    Success(ApiSuccessResponse<RT>),
+}
+
+/// An API response indicating a failure.
+/// 
+/// If you want to deserialize a response from the API, you probably want [`ApiResponse`] instead. (this type doesn't handle parsing successful responses.)
+#[derive(Debug, Deserialize)]
+pub struct ApiFailureResponse {
+    pub meta: ApiResponseMeta,
+    pub errors: Vec<ApiErrorEntry>,
+}
+
+/// An api response indicating a successful request.
+/// 
+/// If you want to deserialize a response from the API, you probably want [`ApiResponse`] instead. (this type doesn't handle parsing failure responses.)
+#[derive(Debug, Deserialize)]
+pub struct ApiSuccessResponse<RT> {
+    pub meta: ApiResponseMeta,
+    pub response: RT,
+}
+
+impl<RT> From<ApiResponse<RT>> for ResponseResult<RT> {
+    fn from(val: ApiResponse<RT>) -> Self {
+        match val {
+            ApiResponse::Success(response) => Ok(response),
+            ApiResponse::Failure(ApiFailureResponse { meta, errors }) => {
+                Err(ResponseError { meta, errors })
+            }
+        }
     }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ApiResponseMeta {
     /// "The 3-digit HTTP Status-Code (e.g., 200)"
     pub status: i32,
@@ -307,6 +363,39 @@ pub struct ApiResponseMeta {
     // #[serde(flatten)]
     // pub other_fields: serde_json::Map<String, serde_json::Value>,
 }
+
+#[derive(Debug, Deserialize, thiserror::Error)]
+pub struct ResponseError {
+    pub meta: ApiResponseMeta,
+    pub errors: Vec<ApiErrorEntry>,
+}
+
+impl fmt::Display for ResponseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt_error_entry(err: &ApiErrorEntry, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "({}) {}", err.code, err.title)
+        }
+        match &self.errors[..] {
+            [] => {
+                write!(f, " (no details provided)")?;
+            }
+            [err] => {
+                write!(f, " - ")?;
+                fmt_error_entry(err, f)?;
+            }
+            errs => {
+                write!(f, " - causes:")?;
+                for err in errs {
+                    write!(f, "\n   - ")?;
+                    fmt_error_entry(err, f)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+pub type ResponseResult<RT> = Result<ApiSuccessResponse<RT>, ResponseError>;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UserInfoResponse {
