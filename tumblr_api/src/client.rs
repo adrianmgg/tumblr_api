@@ -179,6 +179,8 @@ pub enum RequestError {
     #[error(transparent)]
     Network(#[from] reqwest::Error),
     #[error(transparent)]
+    Deserializing(#[from] serde_json::Error),
+    #[error(transparent)]
     Api(#[from] crate::api::ResponseError),
 }
 
@@ -275,11 +277,10 @@ impl ClientInner {
             request_builder = request_builder.json(&json);
         }
 
-        // TODO json() wraps the serde error in a reqwest error, so maybe we should either do the decode ourself or map the error back so we can have a top level decode error type
-        let resp: ApiResponse<RT> = request_builder.send().await?.json().await?;
-
+        let bytes = request_builder.send().await?.bytes().await?;
+        let resp: ApiResponse<RT> = serde_json::from_slice(&bytes)?;
         let resp: crate::api::ResponseResult<RT> = resp.into();
-        Ok(resp?)
+        resp.map_err(RequestError::from)
     }
 }
 
