@@ -6,7 +6,7 @@ edition = "2021"
 [features]
 default = ["client"]
 client = ["api", "npf", "dep:reqwest", "dep:thiserror", "dep:veil", "dep:async-lock", "dep:time", "dep:serde_with", "dep:serde-enum-str"]
-api = ["npf", "dep:time"]
+api = ["npf", "dep:time", "dep:thiserror"]
 npf = []
 
 [dependencies]
