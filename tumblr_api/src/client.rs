@@ -323,7 +323,7 @@ pub struct UserInfoRequestBuilder {
 impl UserInfoRequestBuilder {
     pub async fn send(
         self,
-    ) -> Result<ApiSuccessResponse<crate::api::UserInfoResponse>, RequestError> {
+    ) -> Result<crate::api::UserInfoResponse, RequestError> {
         self.client
             .inner
             .do_request(
@@ -333,6 +333,7 @@ impl UserInfoRequestBuilder {
                 None,
             )
             .await
+            .map(|r| r.response)
     }
 }
 
@@ -395,7 +396,7 @@ impl CreatePostRequestBuilder {
 
     pub async fn send(
         self,
-    ) -> Result<ApiSuccessResponse<crate::api::CreatePostResponse>, RequestError> {
+    ) -> Result<crate::api::CreatePostResponse, RequestError> {
         // the api takes state & publish_on as two different properties,
         //  where publish_on is only valid when the state is queue & that represents a scheduled post.
         //  we instead expose it as a single enum where queue & schedule are different variants,
@@ -456,6 +457,7 @@ impl CreatePostRequestBuilder {
                 ),
             )
             .await
+            .map(|r| r.response)
     }
 }
 
@@ -469,7 +471,7 @@ pub struct ApiLimitsRequestBuilder {
 impl ApiLimitsRequestBuilder {
     pub async fn send(
         self,
-    ) -> Result<ApiSuccessResponse<crate::api::ApiLimitsResponse>, RequestError> {
+    ) -> Result<crate::api::ApiLimitsResponse, RequestError> {
         self.client
             .inner
             .do_request(
@@ -479,5 +481,6 @@ impl ApiLimitsRequestBuilder {
                 None,
             )
             .await
+            .map(|r| r.response)
     }
 }
