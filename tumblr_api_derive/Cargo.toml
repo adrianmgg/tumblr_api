@@ -8,7 +8,8 @@ license = "MIT OR Apache-2.0"
 proc-macro = true
 
 [dependencies]
-darling = { version = "0.20", features = ["suggestions"] }
+# we need at least 0.20.2 because of https://github.com/TedDriggs/darling/pull/236
+darling = { version = "~0.20.2", features = ["suggestions"] }
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = "2.0"
