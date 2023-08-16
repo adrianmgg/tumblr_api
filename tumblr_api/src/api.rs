@@ -74,7 +74,7 @@ pub struct NPFPost {
     // TODO
     pub trail: Vec<serde_json::Value>,
     #[serde(flatten)]
-    interactability: InteractabilityInfo,
+    pub interactability: InteractabilityInfo,
     pub display_avatar: bool,
     // TODO specifically when does this one show up? most posts didnt have it
     pub is_pinned: Option<bool>,
@@ -231,6 +231,7 @@ mod post_id_serde {
         id_string: String,
     }
 
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub(super) fn serialize<S>(id: &i64, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -278,7 +279,7 @@ pub struct InteractabilityInfo {
 // https://www.tumblr.com/docs/en/api/v2#errors-and-error-subcodes
 /// Represents a single error reported by the API .
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ApiErrorEntry {
+pub struct ResponseErrorEntry {
     // TODO should title/code be `Option`al? are they ever not included?
     pub title: String,
     pub code: i32,
@@ -293,58 +294,58 @@ pub struct ApiErrorEntry {
 /// `RT` is the type of the particular response, and should implement [`Deserialize`][serde::Deserialize]
 ///
 /// ```
-/// use tumblr_api::api::{ApiResponse, CreatePostResponse};
+/// use tumblr_api::api::{Response, CreatePostResponse};
 /// # fn main() -> anyhow::Result<()> {
 /// let data = r#"{
 ///     "meta": { "msg": "Created", "status": 201 },
 ///     "response": { "id": "1234567891234567" }
 /// }"#;
-/// let resp: ApiResponse<CreatePostResponse> = serde_json::from_str(data)?;
+/// let resp: Response<CreatePostResponse> = serde_json::from_str(data)?;
 /// # Ok(())
 /// # }
 /// ```
 ///
 /// If you want a `Result` to work with, it to a [`ResponseResult<RT>`][ResponseResult] with the same `RT`.
 /// ```
-/// # use tumblr_api::api::{ApiResponse, CreatePostResponse};
+/// # use tumblr_api::api::{Response, CreatePostResponse};
 /// use tumblr_api::api::ResponseResult;
 /// # fn main() -> anyhow::Result<()> {
 /// # let data = r#"{"meta":{"msg":"Created","status":201},"response":{"id":"1234567891234567"}}"#;
 /// let resp: ResponseResult<CreatePostResponse> =
-///     serde_json::from_str::<ApiResponse<_>>(data)?.into();
+///     serde_json::from_str::<Response<_>>(data)?.into();
 /// # Ok(())
 /// # }
 /// ```
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
-pub enum ApiResponse<RT> {
-    Failure(ApiFailureResponse),
-    Success(ApiSuccessResponse<RT>),
+pub enum Response<RT> {
+    Failure(FailureResponse),
+    Success(SuccessResponse<RT>),
 }
 
 /// An API response indicating a failure.
 /// 
-/// If you want to deserialize a response from the API, you probably want [`ApiResponse`] instead. (this type doesn't handle parsing successful responses.)
+/// If you want to deserialize a response from the API, you probably want [`Response`] instead. (this type doesn't handle parsing successful responses.)
 #[derive(Debug, Deserialize)]
-pub struct ApiFailureResponse {
-    pub meta: ApiResponseMeta,
-    pub errors: Vec<ApiErrorEntry>,
+pub struct FailureResponse {
+    pub meta: ResponseMeta,
+    pub errors: Vec<ResponseErrorEntry>,
 }
 
 /// An api response indicating a successful request.
 /// 
-/// If you want to deserialize a response from the API, you probably want [`ApiResponse`] instead. (this type doesn't handle parsing failure responses.)
+/// If you want to deserialize a response from the API, you probably want [`Response`] instead. (this type doesn't handle parsing failure responses.)
 #[derive(Debug, Deserialize)]
-pub struct ApiSuccessResponse<RT> {
-    pub meta: ApiResponseMeta,
+pub struct SuccessResponse<RT> {
+    pub meta: ResponseMeta,
     pub response: RT,
 }
 
-impl<RT> From<ApiResponse<RT>> for ResponseResult<RT> {
-    fn from(val: ApiResponse<RT>) -> Self {
+impl<RT> From<Response<RT>> for ResponseResult<RT> {
+    fn from(val: Response<RT>) -> Self {
         match val {
-            ApiResponse::Success(response) => Ok(response),
-            ApiResponse::Failure(ApiFailureResponse { meta, errors }) => {
+            Response::Success(response) => Ok(response),
+            Response::Failure(FailureResponse { meta, errors }) => {
                 Err(ResponseError { meta, errors })
             }
         }
@@ -353,7 +354,7 @@ impl<RT> From<ApiResponse<RT>> for ResponseResult<RT> {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ApiResponseMeta {
+pub struct ResponseMeta {
     /// "The 3-digit HTTP Status-Code (e.g., 200)"
     pub status: i32,
     /// "The HTTP Reason-Phrase (e.g., OK)"
@@ -365,13 +366,13 @@ pub struct ApiResponseMeta {
 
 #[derive(Debug, Deserialize, thiserror::Error)]
 pub struct ResponseError {
-    pub meta: ApiResponseMeta,
-    pub errors: Vec<ApiErrorEntry>,
+    pub meta: ResponseMeta,
+    pub errors: Vec<ResponseErrorEntry>,
 }
 
 impl fmt::Display for ResponseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fn fmt_error_entry(err: &ApiErrorEntry, f: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt_error_entry(err: &ResponseErrorEntry, f: &mut fmt::Formatter) -> fmt::Result {
             write!(f, "({}) {}", err.code, err.title)
         }
         match &self.errors[..] {
@@ -394,7 +395,7 @@ impl fmt::Display for ResponseError {
     }
 }
 
-pub type ResponseResult<RT> = Result<ApiSuccessResponse<RT>, ResponseError>;
+pub type ResponseResult<RT> = Result<SuccessResponse<RT>, ResponseError>;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UserInfoResponse {
@@ -509,7 +510,7 @@ pub enum CreatePostState {
 pub struct CreatePostResponse {
     // TODO - "intentionally a string instead of an integer for 32bit device compatibility" - should make it an int
     /// "the id of the created post"
-    id: String,
+    pub id: String,
     // TODO - field `state` - observed values: "published", "draft", "private", "queued"
     // TODO - field `display_text` - observed values: (a string)
     /// unknown/unhandled fields
@@ -518,32 +519,32 @@ pub struct CreatePostResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ApiLimitsResponse {
-    pub user: ApiUserLimits,
+pub struct LimitsResponse {
+    pub user: UserLimits,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ApiUserLimits {
+pub struct UserLimits {
     // TODO add 'other' field with (name -> entry) map too?
     // TODO should these be `Option`s? they're not documented
     /// the number of secondary blogs you can create per day
-    pub blogs: ApiLimitEntry,
+    pub blogs: LimitEntry,
     /// the number of blogs you can follow per day
-    pub follows: ApiLimitEntry,
+    pub follows: LimitEntry,
     /// the number of posts you can like per day
-    pub likes: ApiLimitEntry,
+    pub likes: LimitEntry,
     /// the number of photos you can upload per day
-    pub photos: ApiLimitEntry,
+    pub photos: LimitEntry,
     /// the number of posts you can create per day
-    pub posts: ApiLimitEntry,
+    pub posts: LimitEntry,
     /// the number of seconds of video content you can upload per day
-    pub video_seconds: ApiLimitEntry,
+    pub video_seconds: LimitEntry,
     /// the number of video files you can upload per day
-    pub videos: ApiLimitEntry,
+    pub videos: LimitEntry,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ApiLimitEntry {
+pub struct LimitEntry {
     pub description: String,
     pub limit: i64,
     // TODO can remaining ever be negative? if not, should this be unsigned?
@@ -553,6 +554,6 @@ pub struct ApiLimitEntry {
     pub reset_at: OffsetDateTime,
 }
 
-impl ApiLimitEntry {
+impl LimitEntry {
     // TODO add helpers for checking if the limit is done & checking if the reset has elapsed
 }

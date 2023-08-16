@@ -55,7 +55,7 @@ use veil::Redact;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::api::{ApiResponse, ApiSuccessResponse};
+use crate::api::{Response, SuccessResponse};
 
 #[derive(Clone)]
 pub struct Client {
@@ -72,19 +72,6 @@ struct ClientInner {
 pub enum Credentials {
     // OAuth1(OAuth1Credentials),
     OAuth2(OAuth2Credentials),
-}
-
-impl Credentials {
-    pub fn new_oauth2<S1, S2>(consumer_key: S1, consumer_secret: S2) -> Self
-    where
-        S1: Into<String>,
-        S2: Into<String>,
-    {
-        Self::OAuth2(OAuth2Credentials {
-            consumer_key: consumer_key.into(),
-            consumer_secret: consumer_secret.into(),
-        })
-    }
 }
 
 #[derive(Redact)]
@@ -185,6 +172,17 @@ pub enum RequestError {
 }
 
 impl Credentials {
+    pub fn new_oauth2<S1, S2>(consumer_key: S1, consumer_secret: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
+        Self::OAuth2(OAuth2Credentials {
+            consumer_key: consumer_key.into(),
+            consumer_secret: consumer_secret.into(),
+        })
+    }
+
     async fn authorize(&self, http_client: &reqwest::Client) -> Result<Token, AuthError> {
         match self {
             Self::OAuth2(creds) => {
@@ -248,7 +246,7 @@ impl ClientInner {
         url: U,
         json: Option<B>,
         parts: Option<Vec<(Cow<'static, str>, reqwest::multipart::Part)>>,
-    ) -> Result<ApiSuccessResponse<RT>, RequestError>
+    ) -> Result<SuccessResponse<RT>, RequestError>
     where
         RT: DeserializeOwned,
         U: reqwest::IntoUrl,
@@ -278,7 +276,7 @@ impl ClientInner {
         }
 
         let bytes = request_builder.send().await?.bytes().await?;
-        let resp: ApiResponse<RT> = serde_json::from_slice(&bytes)?;
+        let resp: Response<RT> = serde_json::from_slice(&bytes)?;
         let resp: crate::api::ResponseResult<RT> = resp.into();
         resp.map_err(RequestError::from)
     }
@@ -296,10 +294,12 @@ impl Client {
         }
     }
 
+    #[must_use]
     pub fn user_info(&self) -> UserInfoRequestBuilder {
         UserInfoRequestBuilder::new(self.clone())
     }
 
+    #[must_use]
     pub fn create_post<B, C>(&self, blog_identifier: B, content: C) -> CreatePostRequestBuilder
     where
         B: Into<Box<str>>,
@@ -308,6 +308,7 @@ impl Client {
         CreatePostRequestBuilder::new(self.clone(), blog_identifier.into(), content.into())
     }
 
+    #[must_use]
     pub fn api_limits(&self) -> ApiLimitsRequestBuilder {
         ApiLimitsRequestBuilder::new(self.clone())
     }
@@ -471,7 +472,7 @@ pub struct ApiLimitsRequestBuilder {
 impl ApiLimitsRequestBuilder {
     pub async fn send(
         self,
-    ) -> Result<crate::api::ApiLimitsResponse, RequestError> {
+    ) -> Result<crate::api::LimitsResponse, RequestError> {
         self.client
             .inner
             .do_request(
