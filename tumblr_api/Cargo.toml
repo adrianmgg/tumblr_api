@@ -3,6 +3,10 @@ name = "tumblr_api"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+# TODO description, keywords
+readme = "../README.md"
+repository = "https://github.com/adrianmgg/tumblr_api"
+categories = ["api-bindings", "web-programming::http-client"]
 
 [features]
 default = ["client"]
