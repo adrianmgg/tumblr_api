@@ -7,7 +7,6 @@ use crate::npf;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use time::OffsetDateTime;
-use typed_builder::TypedBuilder;
 
 // https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -447,46 +446,40 @@ pub struct UserInfoBlog {
 }
 
 // https://www.tumblr.com/docs/en/api/v2#posts---createreblog-a-post-neue-post-format
-#[derive(Debug, Deserialize, Serialize, TypedBuilder)]
+// TODO should probably give this a builder again.
+//      (maybe gate `api`'s *Request builders behind an optional feature? we probably won't use them
+//       in client, but someone using api directly would benefit from having them)
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CreatePostRequest {
     /// "An array of NPF content blocks to be used to make the post; in a reblog, this is any content you want to add."
     pub content: Vec<crate::npf::ContentBlock>,
     // /// "An array of NPF layout objects to be used to lay out the post content."
     // pub layout: Option<Vec<tumblr_api::npf::LayoutObject>>, // TODO
     /// "The initial state of the new post, such as "published" or "queued"."
-    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<CreatePostState>,
     /// "The exact future date and time (ISO 8601 format) to publish the post, if desired. This parameter will be ignored unless the state parameter is "queue"."
-    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub publish_on: Option<String>, // TODO some other type
     /// "The exact date and time (ISO 8601 format) in the past to backdate the post, if desired. This backdating does not apply to when the post shows up in the Dashboard."
-    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub date: Option<String>, // TODO some other type
     /// "A comma-separated list of tags to associate with the post."
-    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<String>,
     /// "A source attribution for the post content."
-    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_url: Option<String>,
     /// "Whether or not to share this via any connected Twitter account on post publish. Defaults to the blog's global setting."
-    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub send_to_twitter: Option<bool>,
     /// "Whether this should be a private answer, if this is an answer."
-    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_private: Option<bool>,
     /// "A custom URL slug to use in the post's permalink URL"
-    #[builder(default, setter(into, strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slug: Option<String>,
     /// "Who can interact with this when reblogging"
-    #[builder(default, setter(strip_option))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interactability_reblog: Option<ReblogInteractability>,
 }

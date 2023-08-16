@@ -14,7 +14,6 @@ npf = []
 reqwest = { version = "~0.11.2", features = ["json", "multipart"], optional = true }
 serde = { version = "~1.0.103", features = ["serde_derive"] }
 serde_json = "~1.0.73"
-typed-builder = "0.14"
 thiserror = { version = "~1.0.7", optional = true }
 veil = { version = "0.1", optional = true }
 serde-enum-str = { version = "~0.3", optional = true }
