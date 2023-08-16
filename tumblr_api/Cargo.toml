@@ -19,7 +19,7 @@ thiserror = { version = "~1.0.7", optional = true }
 veil = { version = "0.1", optional = true }
 serde-enum-str = { version = "~0.3", optional = true }
 serde_with = { version = ">= 2.0.1", optional = true }
-time = { version = "*", features = ["formatting", "serde"], optional = true }
+time = { version = "0.3", features = ["formatting", "serde"], optional = true }
 async-lock = { version = "2", optional = true }
 tumblr_api_derive = { path = "../tumblr_api_derive" }  # TODO add version too
 
