@@ -3,10 +3,11 @@ name = "tumblr_api"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-# TODO description, keywords
+description = "Tumblr API client"
 readme = "../README.md"
 repository = "https://github.com/adrianmgg/tumblr_api"
 categories = ["api-bindings", "web-programming::http-client"]
+keywords = ["tumblr", "api", "npf"]
 
 [features]
 default = ["client"]
@@ -24,7 +25,7 @@ serde-enum-str = { version = "~0.3", optional = true }
 serde_with = { version = ">= 2.0.1", optional = true }
 time = { version = "0.3", features = ["formatting", "serde"], optional = true }
 async-lock = { version = "2", optional = true }
-tumblr_api_derive = { path = "../tumblr_api_derive" }  # TODO add version too
+tumblr_api_derive = { path = "../tumblr_api_derive", version = "0.1.0" }
 
 [dev-dependencies]
 anyhow = "1.0.72"

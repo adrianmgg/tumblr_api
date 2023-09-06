@@ -55,7 +55,7 @@
 )]
 // clippy::cargo
 #![warn(clippy::cargo)]
-// #![deny(clippy::cargo_common_metadata)]
+#![allow(clippy::cargo_common_metadata)]
 #![allow(clippy::multiple_crate_versions)]
 
 #[cfg(feature = "api")]

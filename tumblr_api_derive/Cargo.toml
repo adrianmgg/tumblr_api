@@ -3,6 +3,11 @@ name = "tumblr_api_derive"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+description = "proc macros used by tumblr_api"
+readme = "../README.md"
+repository = "https://github.com/adrianmgg/tumblr_api"
+categories = []
+keywords = []
 
 [lib]
 proc-macro = true
