@@ -1,3 +1,7 @@
+[![Crates.io](https://img.shields.io/crates/v/tumblr_api)](https://crates.io/crates/tumblr_api)
+
+# tumblr_api
+
 A rust implementation of the Tumblr API.
 
 This is still very much in beta! see [Major Planned/Unimplemented Features](#major-plannedunimplemented-features)
