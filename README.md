@@ -1,3 +1,29 @@
+A rust implementation of the Tumblr API.
+
+This is still very much in beta! see [Major Planned/Unimplemented Features](#major-plannedunimplemented-features)
+
+## Examples
+
+### Example: Creating a simple post with the client
+```rust
+use tumblr_api::client::{Client, Credentials};
+use tumblr_api::npf;
+let client = Client::new(Credentials::new_oauth2(
+    "your consumer key",
+    "your consumer secret",
+));
+client
+    .create_post(
+        "blog-name",
+        vec![npf::ContentBlockText::builder("hello world").build()],
+    )
+    .send()
+    .await?;
+```
+
+## Major Planned/Unimplemented Features
+- refreshing access tokens (currently, the client will just start failing after the token expires)
+- implement remaining api endpoints (currently it's just post creation plus a couple others)
 
 ## License
 
