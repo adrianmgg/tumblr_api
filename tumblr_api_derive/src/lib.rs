@@ -1,7 +1,4 @@
-#![allow(unused)] // TODO remove me
-
 use darling::{util::Flag, FromDeriveInput, FromField, FromMeta};
-// use proc_macro::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Ident, Visibility};
 
@@ -23,7 +20,7 @@ fn builder_derive_impl(input: &DeriveInput) -> Result<proc_macro2::TokenStream, 
 #[darling(attributes(builder), supports(struct_named))]
 struct BuilderInputReceiver {
     ident: Ident,
-    generics: syn::Generics,
+    // generics: syn::Generics,
     vis: Visibility,
     data: darling::ast::Data<(), BuilderFieldReceiver>,
     builder_class: Option<Ident>,
@@ -43,7 +40,7 @@ struct CtorOptions {
 struct BuilderFieldReceiver {
     ident: Option<Ident>,
     ty: syn::Type,
-    vis: Visibility,
+    // vis: Visibility,
     #[darling(rename = "set")]
     set_mode: BuilderFieldSetMode,
 }
@@ -272,23 +269,6 @@ impl BuilderInputReceiver {
 
 // TODO ough implement this better
 fn strip_option_from(ty: &syn::Type) -> Result<syn::Type, darling::Error> {
-    // match ty {
-    //     syn::Type::Path(syn::TypePath {
-    //         qself: None,
-    //         path
-    //     }) => {
-    //         let a = &path
-    //             .segments
-    //             .iter()
-    //             .map(|s| s.ident.to_string())
-    //             .collect::<Vec<_>>()
-    //             .join("[::]");
-    //         let b = &path.segments.last().unwrap().arguments;
-    //         todo!("[{:?}] [{:?}]", a, b);
-    //     },
-    //     _ => Err(darling::Error::custom("unable to strip Option from provided type").with_span(&ty.span())),
-    // }
-
     let a = ty.to_token_stream()
         .into_iter()
         .collect::<Vec<_>>();
