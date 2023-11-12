@@ -1,5 +1,6 @@
 [![Crates.io](https://img.shields.io/crates/v/tumblr_api)](https://crates.io/crates/tumblr_api)
 
+
 # tumblr_api
 
 A rust implementation of the Tumblr API.
@@ -8,7 +9,7 @@ This is still very much in beta! see [Major Planned/Unimplemented Features](#maj
 
 ## Examples
 
-### Example: Creating a simple post with the client
+### Creating a simple post with the client
 ```rust
 use tumblr_api::client::{Client, Credentials};
 use tumblr_api::npf;
@@ -24,6 +25,9 @@ client
     .send()
     .await?;
 ```
+
+## Modules & Feature Flags
+This library is split into 3 modules - `client`, `api`, and `npf` - and each has a feature flag of the same name that controls whether it's enabled.
 
 ## Major Planned/Unimplemented Features
 - refreshing access tokens (currently, the client will just start failing after the token expires)

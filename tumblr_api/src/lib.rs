@@ -1,4 +1,6 @@
-//! A (currently incomplete) rust implementation of the Tumblr API.
+//! A rust implementation of the Tumblr API.
+//! 
+//! This is still very much in beta! see [Major Planned/Unimplemented Features](#major-plannedunimplemented-features)
 //!
 //! # Examples
 //!
@@ -25,6 +27,10 @@
 //!
 //! # Modules & Feature Flags
 //! This library is split into 3 modules - `client`, `api`, and `npf` - and each has a feature flag of the same name that controls whether it's enabled.
+//! 
+//! # Major Planned/Unimplemented Features
+//! - refreshing access tokens (currently, the client will just start failing after the token expires)
+//! - implement remaining api endpoints (currently it's just post creation plus a couple others)
 
 // clippy::pedantic
 #![warn(clippy::pedantic)]
