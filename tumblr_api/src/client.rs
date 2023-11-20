@@ -146,6 +146,20 @@ pub struct OAuth2Token {
     expires_at: Instant,
 }
 
+impl Token {
+    // TODO ok yeah this should maybe be a Token trait rather than an enum
+    fn is_expired(&self) -> bool {
+        match self {
+            Token::OAuth2(token) => {
+                let now = Instant::now();
+                // TODO this should probably be done with some extra tolerance, if we're within a
+                //      couple seconds of expiring we should probably just count it
+                now >= token.expires_at
+            },
+        }
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum AuthError {
     #[error(transparent)]
@@ -228,10 +242,19 @@ impl Credentials {
 }
 
 impl ClientInner {
+    /// return active token, authorizing if we haven't already done so or if our token has expired
     async fn get_token_and_maybe_authorize(&self) -> Result<Token, AuthError> {
         let mut guard = self.token.lock().await;
         match &*guard {
-            Some(token) => Ok(token.clone()),
+            Some(token) => {
+                if token.is_expired() {
+                    let token: Token = self.credentials.authorize(&self.http_client).await?;
+                    *guard = Some(token.clone());
+                    Ok(token)
+                } else {
+                    Ok(token.clone())
+                }
+            }
             None => {
                 let token: Token = self.credentials.authorize(&self.http_client).await?;
                 *guard = Some(token.clone());
@@ -263,7 +286,7 @@ impl ClientInner {
             if let Some(json) = json {
                 let body_part = reqwest::multipart::Part::text(serde_json::to_string(&json).unwrap()) // TODO handle instead of unwrapping
                     .mime_str("application/json")
-                    .unwrap(); // TODO handle instead of unwrapping
+                    .unwrap(); // TODO handle instead of unwrapping?
                 form = form.part("json", body_part);
                 for (part_id, part) in parts {
                     form = form.part(part_id, part);
