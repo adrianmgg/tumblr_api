@@ -40,22 +40,20 @@
 //! # }
 //! ```
 
-use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
-use serde_with::serde_as;
-use serde_with::DurationSeconds;
 use tumblr_api_derive::Builder;
 
 use std::borrow::Cow;
 use std::{
     fmt::Debug,
     sync::Arc,
-    time::{Duration, Instant},
+    time::Instant,
 };
 use veil::Redact;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 
 use crate::api::{Response, SuccessResponse};
+use crate::auth::simple_oauth2::AuthError;
 
 #[derive(Clone)]
 pub struct Client {
@@ -80,57 +78,6 @@ pub struct OAuth2Credentials {
     pub consumer_key: String,
     #[redact]
     pub consumer_secret: String,
-}
-
-impl From<OAuth2Credentials> for Credentials {
-    fn from(value: OAuth2Credentials) -> Self {
-        Self::OAuth2(value)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum Scope {
-    Basic,
-    OfflineAccess,
-    Write,
-}
-
-/// possible values of `error` in OAuth 2 error response, see <https://www.rfc-editor.org/rfc/rfc6749#section-5.2>
-#[derive(Eq, PartialEq, Deserialize_enum_str, Serialize_enum_str, Debug)]
-#[serde(rename_all = "snake_case")]
-pub enum OAuth2AuthErrorCode {
-    InvalidRequest,
-    InvalidClient,
-    InvalidGrant,
-    UnauthorizedClient,
-    UnsupportedGrantType,
-    InvalidScope,
-    /// some unknown error
-    #[serde(other)]
-    Unknown(String),
-}
-
-#[serde_as]
-#[derive(Redact, Serialize, Deserialize)]
-#[serde(untagged)]
-enum OAuth2AuthResponse {
-    Token {
-        #[redact]
-        access_token: Box<str>,
-        #[serde_as(as = "DurationSeconds<u64>")]
-        expires_in: Duration,
-        // token_type: String,
-        // scope: String,
-    },
-    // https://www.rfc-editor.org/rfc/rfc6749#section-5.2
-    Error {
-        error: OAuth2AuthErrorCode,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        error_description: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        error_uri: Option<String>,
-    },
 }
 
 #[derive(Debug, Clone)]
@@ -161,19 +108,6 @@ impl Token {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum AuthError {
-    #[error(transparent)]
-    Network(#[from] reqwest::Error),
-    // TODO give this a better message format instead of just :?ing the `Option<String>`s
-    #[error("oauth error! {error} - {error_description:?} - {error_uri:?}")]
-    OAuth {
-        error: OAuth2AuthErrorCode,
-        error_description: Option<String>,
-        error_uri: Option<String>,
-    },
-}
-
-#[derive(thiserror::Error, Debug)]
 pub enum RequestError {
     #[error(transparent)]
     Auth(#[from] AuthError),
@@ -195,49 +129,6 @@ impl Credentials {
             consumer_key: consumer_key.into(),
             consumer_secret: consumer_secret.into(),
         })
-    }
-
-    async fn authorize(&self, http_client: &reqwest::Client) -> Result<Token, AuthError> {
-        match self {
-            Self::OAuth2(creds) => {
-                let request_sent_at = Instant::now();
-                // TODO make a proper serde struct for this rather than doing it this way
-                let form_data = [
-                    ("grant_type", "client_credentials"),
-                    ("scope", "basic offline_access write"),
-                    ("client_id", &creds.consumer_key),
-                    ("client_secret", &creds.consumer_secret),
-                ];
-                let resp: OAuth2AuthResponse = http_client
-                    .post("https://api.tumblr.com/v2/oauth2/token")
-                    .form(&form_data)
-                    .send()
-                    .await?
-                    .json()
-                    .await?;
-                match resp {
-                    OAuth2AuthResponse::Token {
-                        access_token,
-                        expires_in,
-                    } => {
-                        let expires_at = request_sent_at + expires_in;
-                        Ok(Token::OAuth2(OAuth2Token {
-                            access_token,
-                            expires_at,
-                        }))
-                    }
-                    OAuth2AuthResponse::Error {
-                        error,
-                        error_description,
-                        error_uri,
-                    } => Err(AuthError::OAuth {
-                        error,
-                        error_description,
-                        error_uri,
-                    }),
-                }
-            }
-        }
     }
 }
 

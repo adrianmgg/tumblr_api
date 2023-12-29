@@ -119,3 +119,5 @@ pub mod api;
 pub mod client;
 #[cfg(feature = "npf")]
 pub mod npf;
+// TODO add feature flag for auth
+pub mod auth;
