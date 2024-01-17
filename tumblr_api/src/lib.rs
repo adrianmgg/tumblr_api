@@ -8,9 +8,8 @@
 //!```no_run
 //! # #[tokio::main]
 //! # async fn main() -> anyhow::Result<()> {
-//! use tumblr_api::client::{Client, Credentials};
-//! use tumblr_api::npf;
-//! let client = Client::new(Credentials::new_oauth2(
+//! use tumblr_api::{npf, client::Client, auth::Credentials};
+//! let client = Client::new(Credentials::new(
 //!     "your consumer key",
 //!     "your consumer secret",
 //! ));
@@ -29,10 +28,9 @@
 //! ```no_run
 //! # #[tokio::main]
 //! # async fn main() -> anyhow::Result<()> {
-//! # use tumblr_api::client::{Client, Credentials};
-//! # use tumblr_api::npf;
+//! # use tumblr_api::{npf, client::Client, auth::Credentials};
 //! use tumblr_api::client::CreatePostState;
-//! # let client = Client::new(Credentials::new_oauth2(
+//! # let client = Client::new(Credentials::new(
 //! #     "your consumer key",
 //! #     "your consumer secret",
 //! # ));

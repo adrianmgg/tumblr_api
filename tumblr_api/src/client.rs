@@ -5,17 +5,17 @@
 //! 
 //! creating a client
 //! ```no_run
-//! use tumblr_api::client::{Client, Credentials};
-//! let client = Client::new(Credentials::new_oauth2("your consumer key", "your consumer secret"));
+//! use tumblr_api::{client::Client, auth::Credentials};
+//! let client = Client::new(Credentials::new("your consumer key", "your consumer secret"));
 //! ```
 //! 
 // TODO (see below)
 //! TODO example name here
 //! ```no_run
-//! # use tumblr_api::client::{Client, Credentials};
+//! # use tumblr_api::{client::Client, auth::Credentials};
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), tumblr_api::client::RequestError> {
-//! # let client = Client::new(Credentials::new_oauth2("your consumer key", "your consumer secret"));
+//! # let client = Client::new(Credentials::new("your consumer key", "your consumer secret"));
 //! let limits = client.api_limits().send().await?;
 //! println!("you are {} posts away from hitting post limit", limits.user.posts.remaining);
 //! # Ok(())
@@ -24,11 +24,11 @@
 //! 
 //! creating a post
 //! ```no_run
-//! # use tumblr_api::client::{Client, Credentials};
+//! # use tumblr_api::{client::Client, auth::Credentials};
 //! use tumblr_api::npf;
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), tumblr_api::client::RequestError> {
-//! # let client = Client::new(Credentials::new_oauth2("your consumer key", "your consumer secret"));
+//! # let client = Client::new(Credentials::new("your consumer key", "your consumer secret"));
 //! client
 //!     .create_post(
 //!         "blog-name",
