@@ -14,9 +14,9 @@ exclude = [
 
 [features]
 default = ["client"]
-client = ["api", "npf", "auth", "dep:reqwest", "dep:thiserror", "dep:veil", "dep:async-lock", "dep:time", "dep:serde_with", "dep:serde-enum-str"]
+client = ["api", "npf", "auth", "dep:reqwest", "dep:thiserror", "dep:time"]
 api = ["npf", "dep:time", "dep:thiserror"]
-auth = []   # TODO add deps
+auth = ["dep:reqwest", "dep:thiserror", "dep:veil", "dep:async-lock", "dep:serde_with", "dep:serde-enum-str"]
 npf = []
 
 [dependencies]
