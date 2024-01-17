@@ -50,7 +50,7 @@ use std::{
 
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{api::{Response, SuccessResponse}, auth::{Token, AuthError, Credentials}};
+use crate::{api::{Response, SuccessResponse}, auth::{AuthError, Credentials}};
 
 #[derive(Clone)]
 pub struct Client {
@@ -60,7 +60,6 @@ pub struct Client {
 struct ClientInner {
     credentials: Credentials,
     http_client: reqwest::Client,
-    token: async_lock::Mutex<Option<Token>>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -76,27 +75,6 @@ pub enum RequestError {
 }
 
 impl ClientInner {
-    /// return active token, authorizing if we haven't already done so or if our token has expired
-    async fn get_token_and_maybe_authorize(&self) -> Result<Token, AuthError> {
-        let mut guard = self.token.lock().await;
-        match &*guard {
-            Some(token) => {
-                if token.is_expired() {
-                    let token: Token = self.credentials.authorize(&self.http_client).await?;
-                    *guard = Some(token.clone());
-                    Ok(token)
-                } else {
-                    Ok(token.clone())
-                }
-            }
-            None => {
-                let token: Token = self.credentials.authorize(&self.http_client).await?;
-                *guard = Some(token.clone());
-                Ok(token)
-            }
-        }
-    }
-
     async fn do_request<RT, U, B>(
         &self,
         method: reqwest::Method,
@@ -110,7 +88,8 @@ impl ClientInner {
         B: Serialize + Sized,
     {
         let mut request_builder = self.http_client.request(method, url);
-        request_builder = self.authorize_reqwest_request(request_builder).await?;
+        let token = self.credentials.authorize(&self.http_client).await?;
+        request_builder = request_builder.bearer_auth(token.0); // TODO should make this not be .0
         if let Some(parts) = parts {
             let mut form = reqwest::multipart::Form::new();
             if let Some(json) = json {
@@ -133,14 +112,6 @@ impl ClientInner {
         let resp: crate::api::ResponseResult<RT> = resp.into();
         resp.map_err(RequestError::from)
     }
-
-    pub async fn authorize_reqwest_request(&self, request: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, AuthError> {
-        match self.get_token_and_maybe_authorize().await? {
-            Token::OAuth2(token) => {
-                Ok(request.bearer_auth(&token.access_token))
-            }
-        }
-    }
 }
 
 impl Client {
@@ -150,7 +121,6 @@ impl Client {
             inner: Arc::new(ClientInner {
                 http_client: reqwest::Client::new(),
                 credentials,
-                token: async_lock::Mutex::new(None),
             }),
         }
     }
