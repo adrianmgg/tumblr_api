@@ -38,9 +38,12 @@
 //! that aren't long-running (e.g. a CLI tool for creating posts) can still benefit from
 //! [`Credentials`] only re-authorizing when needed.
 
-use std::{time::{Duration, Instant}, fmt};
+use std::{
+    fmt,
+    time::{Duration, Instant},
+};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use serde_with::{serde_as, DurationSeconds};
 use veil::Redact;
@@ -63,7 +66,7 @@ pub struct Credentials {
 /// <div class="warning">
 ///
 /// [`BearerToken`]'s [`Debug`][`fmt::Debug`] implementation will be redacted (via [`veil`]).
-/// 
+///
 /// To get the actual content of the token, use either [`Display`][`fmt::Display`] or
 /// [`String::from`] / [`Into<String>`].
 /// </div>
@@ -169,7 +172,10 @@ impl Credentials {
         }
     }
 
-    async fn definitely_authorize(&self, http_client: &reqwest::Client) -> Result<TokenWithExpiry, Error> {
+    async fn definitely_authorize(
+        &self,
+        http_client: &reqwest::Client,
+    ) -> Result<TokenWithExpiry, Error> {
         let request_sent_at = Instant::now();
         // TODO make a proper serde struct for this rather than doing it this way
         let form_data = [
@@ -218,7 +224,7 @@ impl Credentials {
                 let ret = new_token.token.clone();
                 *guard = Some(new_token);
                 Ok(ret)
-            },
+            }
             Some(token) => {
                 if token.is_expired() {
                     let new_token = self.definitely_authorize(http_client).await?;
@@ -228,7 +234,7 @@ impl Credentials {
                 } else {
                     Ok(token.token.clone())
                 }
-            },
+            }
         }
     }
 }
@@ -241,7 +247,8 @@ mod tests {
     // fail to deserialize.
     #[test]
     fn test_bearertoken_deserialize() {
-        let token: BearerToken = serde_json::from_value(serde_json::json!("hello world")).expect("BearerToken deserialize failed");
+        let token: BearerToken = serde_json::from_value(serde_json::json!("hello world"))
+            .expect("BearerToken deserialize failed");
         let token_str: String = token.into();
         assert_eq!(token_str, "hello world".to_string());
     }
