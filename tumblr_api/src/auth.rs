@@ -1,10 +1,54 @@
-use std::time::{Duration, Instant};
+//! tumblr api authorization
+//!
+//! # Examples
+//!
+//! ## manually authorizing
+//! First, create a [`Credentials`] from your api keys.
+//! (just doing this will **not** make any api calls)
+//! ```
+//! use tumblr_api::auth::Credentials;
+//! let credentials = Credentials::new("your consumer key", "your consumer secret");
+//! ```
+//! Then, when you need a token for interacting with the api, get one via
+//! [`Credentials::authorize`].
+//!
+//! ```no_run
+//! # use tumblr_api::auth::Credentials;
+//! # #[tokio::main]
+//! # async fn main() -> anyhow::Result<()> {
+//! # let credentials = Credentials::new("your consumer key", "your consumer secret");
+//! let reqwest_client = reqwest::Client::new();
+//! let token = credentials.authorize(&reqwest_client).await?;
+//! # Ok(())
+//! # }
+//! ```
+//! <div class="warning">
+//!
+//! You should [`authorize`][`Credentials::authorize`] once for each API request you send,
+//! ideally immemdiately before sending the request.
+//!
+//! [`Credentials`] handles caching the most recent token and only actually re-authorizing when the
+//! old token has expired, so there's no need to cache the token yourself, and more importantly, no
+//! gurantee that the returned token will be valid for very long.
+//! </div>
+//!
+//! ## reusing tokens across runs
+//! this is not yet implemented but is a planned feature for `1.0`, and will probably involve
+//! adding [`Deserialize`] and [`Serialize`] implementations to [`Credentials`], so that programs
+//! that aren't long-running (e.g. a CLI tool for creating posts) can still benefit from
+//! [`Credentials`] only re-authorizing when needed.
+
+use std::{time::{Duration, Instant}, fmt};
 
 use serde::{Serialize, Deserialize};
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use serde_with::{serde_as, DurationSeconds};
 use veil::Redact;
 
+/// API credentials, which can be used to acquire an access token
+///
+/// [`Credentials`]'s [`Debug`][`fmt::Debug`] implementation will be redacted (via [`veil`]), so
+/// you can log it without worrying about revealing your keys.
 #[derive(Redact)]
 pub struct Credentials {
     #[redact]
@@ -14,12 +58,34 @@ pub struct Credentials {
     token: async_lock::Mutex<Option<TokenWithExpiry>>,
 }
 
-#[derive(Redact, Clone)]
-pub struct BearerToken(#[redact] pub String);
+/// access token for the API
+///
+/// <div class="warning">
+///
+/// [`BearerToken`]'s [`Debug`][`fmt::Debug`] implementation will be redacted (via [`veil`]).
+/// 
+/// To get the actual content of the token, use either [`Display`][`fmt::Display`] or
+/// [`String::from`] / [`Into<String>`].
+/// </div>
+#[derive(Redact, Clone, Serialize, Deserialize)]
+pub struct BearerToken(#[redact] String);
+
+impl From<BearerToken> for String {
+    fn from(val: BearerToken) -> Self {
+        val.0
+    }
+}
+
+impl fmt::Display for BearerToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug)]
 struct TokenWithExpiry {
     token: BearerToken,
+    /// when the token will expire
     expires_at: Instant,
 }
 
@@ -61,7 +127,7 @@ pub enum OAuth2AuthErrorCode {
 enum OAuth2AuthResponse {
     Token {
         #[redact]
-        access_token: String,
+        access_token: BearerToken,
         #[serde_as(as = "DurationSeconds<u64>")]
         expires_in: Duration,
         // token_type: String,
@@ -78,7 +144,7 @@ enum OAuth2AuthResponse {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum AuthError {
+pub enum Error {
     #[error(transparent)]
     Network(#[from] reqwest::Error),
     // TODO give this a better message format instead of just :?ing the `Option<String>`s
@@ -103,7 +169,7 @@ impl Credentials {
         }
     }
 
-    async fn definitely_authorize(&self, http_client: &reqwest::Client) -> Result<TokenWithExpiry, AuthError> {
+    async fn definitely_authorize(&self, http_client: &reqwest::Client) -> Result<TokenWithExpiry, Error> {
         let request_sent_at = Instant::now();
         // TODO make a proper serde struct for this rather than doing it this way
         let form_data = [
@@ -126,7 +192,7 @@ impl Credentials {
             } => {
                 let expires_at = request_sent_at + expires_in;
                 Ok(TokenWithExpiry {
-                    token: BearerToken(access_token),
+                    token: access_token,
                     expires_at,
                 })
             }
@@ -134,7 +200,7 @@ impl Credentials {
                 error,
                 error_description,
                 error_uri,
-            } => Err(AuthError::OAuth {
+            } => Err(Error::OAuth {
                 error,
                 error_description,
                 error_uri,
@@ -144,7 +210,7 @@ impl Credentials {
 
     /// returns an active token, authorizing if we haven't already done so or if the currently
     /// stored token has expired
-    pub async fn authorize(&self, http_client: &reqwest::Client) -> Result<BearerToken, AuthError> {
+    pub async fn authorize(&self, http_client: &reqwest::Client) -> Result<BearerToken, Error> {
         let mut guard = self.token.lock().await;
         match &*guard {
             None => {
@@ -164,5 +230,19 @@ impl Credentials {
                 }
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // `BearerToken`s must deserialize from a single json string, otherwise the oauth responses will
+    // fail to deserialize.
+    #[test]
+    fn test_bearertoken_deserialize() {
+        let token: BearerToken = serde_json::from_value(serde_json::json!("hello world")).expect("BearerToken deserialize failed");
+        let token_str: String = token.into();
+        assert_eq!(token_str, "hello world".to_string());
     }
 }

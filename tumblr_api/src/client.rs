@@ -50,7 +50,7 @@ use std::{
 
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{api::{Response, SuccessResponse}, auth::{AuthError, Credentials}};
+use crate::{api::{Response, SuccessResponse}, auth::{Error as AuthError, Credentials}};
 
 #[derive(Clone)]
 pub struct Client {
@@ -89,7 +89,7 @@ impl ClientInner {
     {
         let mut request_builder = self.http_client.request(method, url);
         let token = self.credentials.authorize(&self.http_client).await?;
-        request_builder = request_builder.bearer_auth(token.0); // TODO should make this not be .0
+        request_builder = request_builder.bearer_auth(token);
         if let Some(parts) = parts {
             let mut form = reqwest::multipart::Form::new();
             if let Some(json) = json {
