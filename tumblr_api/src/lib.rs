@@ -8,9 +8,8 @@
 //!```no_run
 //! # #[tokio::main]
 //! # async fn main() -> anyhow::Result<()> {
-//! use tumblr_api::client::{Client, Credentials};
-//! use tumblr_api::npf;
-//! let client = Client::new(Credentials::new_oauth2(
+//! use tumblr_api::{npf, client::Client, auth::Credentials};
+//! let client = Client::new(Credentials::new(
 //!     "your consumer key",
 //!     "your consumer secret",
 //! ));
@@ -29,10 +28,9 @@
 //! ```no_run
 //! # #[tokio::main]
 //! # async fn main() -> anyhow::Result<()> {
-//! # use tumblr_api::client::{Client, Credentials};
-//! # use tumblr_api::npf;
+//! # use tumblr_api::{npf, client::Client, auth::Credentials};
 //! use tumblr_api::client::CreatePostState;
-//! # let client = Client::new(Credentials::new_oauth2(
+//! # let client = Client::new(Credentials::new(
 //! #     "your consumer key",
 //! #     "your consumer secret",
 //! # ));
@@ -76,7 +74,8 @@
 //! ```
 //!
 //! # Modules & Feature Flags
-//! This library is split into 3 modules - `client`, `api`, and `npf` - and each has a feature flag of the same name that controls whether it's enabled.
+//! This library is split into multiple modules - `client`, `api`, `npf`, and `auth` - and each has a feature flag of the same name that controls whether it's enabled.
+//! They'll all be enabled by default, but if you only need certain features (e.g. just npf parsing) you can enable just those instead.
 //!
 //! # Major Planned/Unimplemented Features
 //! - implement remaining api endpoints (currently it's just post creation plus a couple others)
@@ -119,3 +118,5 @@ pub mod api;
 pub mod client;
 #[cfg(feature = "npf")]
 pub mod npf;
+#[cfg(feature = "auth")]
+pub mod auth;

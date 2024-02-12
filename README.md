@@ -11,9 +11,8 @@ This is still very much in beta! see [Major Planned/Unimplemented Features](#maj
 
 ### Creating a simple post with the client
 ```rust
-use tumblr_api::client::{Client, Credentials};
-use tumblr_api::npf;
-let client = Client::new(Credentials::new_oauth2(
+use tumblr_api::{npf, client::Client, auth::Credentials};
+let client = Client::new(Credentials::new(
     "your consumer key",
     "your consumer secret",
 ));
@@ -67,7 +66,8 @@ client
 ```
 
 ## Modules & Feature Flags
-This library is split into 3 modules - `client`, `api`, and `npf` - and each has a feature flag of the same name that controls whether it's enabled.
+This library is split into multiple modules - `client`, `api`, `npf`, and `auth` - and each has a feature flag of the same name that controls whether it's enabled.
+They'll all be enabled by default, but if you only need certain features (e.g. just npf parsing) you can enable just those instead.
 
 ## Major Planned/Unimplemented Features
 - implement remaining api endpoints (currently it's just post creation plus a couple others)
@@ -88,3 +88,5 @@ at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
+
+<!-- to generate README: cargo readme --project-root ./tumblr_api/ --template ../README.tpl --output ../README.md -->
