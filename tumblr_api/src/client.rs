@@ -1,14 +1,14 @@
 // TODO (see below)
 //! client (TODO: one-line description here)
-//! 
+//!
 //! # Examples
-//! 
+//!
 //! creating a client
 //! ```no_run
 //! use tumblr_api::{client::Client, auth::Credentials};
 //! let client = Client::new(Credentials::new("your consumer key", "your consumer secret"));
 //! ```
-//! 
+//!
 // TODO (see below)
 //! TODO example name here
 //! ```no_run
@@ -21,7 +21,7 @@
 //! # Ok(())
 //! # }
 //! ```
-//! 
+//!
 //! creating a post
 //! ```no_run
 //! # use tumblr_api::{client::Client, auth::Credentials};
@@ -43,14 +43,14 @@
 use tumblr_api_derive::Builder;
 
 use std::borrow::Cow;
-use std::{
-    fmt::Debug,
-    sync::Arc,
-};
+use std::{fmt::Debug, sync::Arc};
 
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{api::{Response, SuccessResponse}, auth::{Error as AuthError, Credentials}};
+use crate::{
+    api::{Response, SuccessResponse},
+    auth::{Credentials, Error as AuthError},
+};
 
 #[derive(Clone)]
 pub struct Client {
@@ -93,17 +93,17 @@ impl ClientInner {
         if let Some(parts) = parts {
             let mut form = reqwest::multipart::Form::new();
             if let Some(json) = json {
-                let body_part = reqwest::multipart::Part::text(serde_json::to_string(&json).unwrap()) // TODO handle instead of unwrapping
-                    .mime_str("application/json")
-                    .unwrap(); // TODO handle instead of unwrapping?
+                let body_part =
+                    reqwest::multipart::Part::text(serde_json::to_string(&json).unwrap()) // TODO handle instead of unwrapping
+                        .mime_str("application/json")
+                        .unwrap(); // TODO handle instead of unwrapping?
                 form = form.part("json", body_part);
                 for (part_id, part) in parts {
                     form = form.part(part_id, part);
                 }
             }
             request_builder = request_builder.multipart(form);
-        }
-        else if let Some(json) = json {
+        } else if let Some(json) = json {
             request_builder = request_builder.json(&json);
         }
 
@@ -153,9 +153,7 @@ pub struct UserInfoRequestBuilder {
 }
 
 impl UserInfoRequestBuilder {
-    pub async fn send(
-        self,
-    ) -> Result<crate::api::UserInfoResponse, RequestError> {
+    pub async fn send(self) -> Result<crate::api::UserInfoResponse, RequestError> {
         self.client
             .inner
             .do_request(
@@ -191,7 +189,9 @@ pub struct CreatePostRequestBuilder {
     blog_identifier: Box<str>,
     #[builder(set(ctor))]
     content: Vec<crate::npf::ContentBlock>,
-    #[builder(set(setter(into, strip_option,
+    #[builder(set(setter(
+        into,
+        strip_option,
         doc = "set the tags the created post will have. corresponds to [`api::CreatePostRequest::tags`][crate::api::CreatePostRequest::tags]"
     )))]
     tags: Option<Box<str>>,
@@ -213,7 +213,12 @@ struct CreatePostAttachment {
 
 impl CreatePostRequestBuilder {
     #[must_use]
-    pub fn add_attachment<S1, S2>(mut self, stream: reqwest::Body, mime_type: S1, identifier: S2) -> Self
+    pub fn add_attachment<S1, S2>(
+        mut self,
+        stream: reqwest::Body,
+        mime_type: S1,
+        identifier: S2,
+    ) -> Self
     where
         S1: Into<Box<str>>,
         S2: Into<Cow<'static, str>>,
@@ -226,9 +231,7 @@ impl CreatePostRequestBuilder {
         self
     }
 
-    pub async fn send(
-        self,
-    ) -> Result<crate::api::CreatePostResponse, RequestError> {
+    pub async fn send(self) -> Result<crate::api::CreatePostResponse, RequestError> {
         // the api takes state & publish_on as two different properties,
         //  where publish_on is only valid when the state is queue & that represents a scheduled post.
         //  we instead expose it as a single enum where queue & schedule are different variants,
@@ -282,7 +285,8 @@ impl CreatePostRequestBuilder {
                             let part = reqwest::multipart::Part::stream(attachment.stream)
                                 // tumblr requires a filename but doesn't actually check it so we just put something there
                                 .file_name("a")
-                                .mime_str(&attachment.mime_type).unwrap(); // TODO handle instead of just unwrapping
+                                .mime_str(&attachment.mime_type)
+                                .unwrap(); // TODO handle instead of just unwrapping
                             (attachment.identifier, part)
                         })
                         .collect(),
@@ -301,9 +305,7 @@ pub struct ApiLimitsRequestBuilder {
 }
 
 impl ApiLimitsRequestBuilder {
-    pub async fn send(
-        self,
-    ) -> Result<crate::api::LimitsResponse, RequestError> {
+    pub async fn send(self) -> Result<crate::api::LimitsResponse, RequestError> {
         self.client
             .inner
             .do_request(

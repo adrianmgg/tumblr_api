@@ -114,9 +114,9 @@
 
 #[cfg(feature = "api")]
 pub mod api;
+#[cfg(feature = "auth")]
+pub mod auth;
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "npf")]
 pub mod npf;
-#[cfg(feature = "auth")]
-pub mod auth;

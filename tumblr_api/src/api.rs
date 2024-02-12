@@ -324,7 +324,7 @@ pub enum Response<RT> {
 }
 
 /// An API response indicating a failure.
-/// 
+///
 /// If you want to deserialize a response from the API, you probably want [`Response`] instead. (this type doesn't handle parsing successful responses.)
 #[derive(Debug, Deserialize)]
 pub struct FailureResponse {
@@ -333,7 +333,7 @@ pub struct FailureResponse {
 }
 
 /// An api response indicating a successful request.
-/// 
+///
 /// If you want to deserialize a response from the API, you probably want [`Response`] instead. (this type doesn't handle parsing failure responses.)
 #[derive(Debug, Deserialize)]
 pub struct SuccessResponse<RT> {
