@@ -31,12 +31,6 @@
 //! old token has expired, so there's no need to cache the token yourself, and more importantly, no
 //! gurantee that the returned token will be valid for very long.
 //! </div>
-//!
-//! ## reusing tokens across runs
-//! this is not yet implemented but is a planned feature for `1.0`, and will probably involve
-//! adding [`Deserialize`] and [`Serialize`] implementations to [`Credentials`], so that programs
-//! that aren't long-running (e.g. a CLI tool for creating posts) can still benefit from
-//! [`Credentials`] only re-authorizing when needed.
 
 use std::{
     fmt,
