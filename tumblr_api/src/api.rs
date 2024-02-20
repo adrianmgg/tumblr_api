@@ -3,10 +3,14 @@
 // TODO rewrite this line
 //! If you just want to call the api, you probably want the [`client`][crate::client] module instead.
 
+pub mod blog_info;
+
 use crate::npf;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use time::OffsetDateTime;
+
+// TODO maybe move endpoint-specific stuff to their own modules within `api`?
 
 // https://www.tumblr.com/docs/en/api/v2#postspost-id---fetching-a-post-neue-post-format
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
