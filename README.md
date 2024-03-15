@@ -1,3 +1,8 @@
+# active development of this project is mostly on hold
+
+I will still respond to issues/PRs. If you are looking to use this but need a particular endpoint (etc.) implemented in order for this to work for your project, feel free to open an issue asking for it and I will work on that.
+
+
 [![Crates.io](https://img.shields.io/crates/v/tumblr_api)](https://crates.io/crates/tumblr_api)
 
 
